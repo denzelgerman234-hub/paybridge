@@ -1,10 +1,7 @@
 import { Outlet, Link } from 'react-router-dom';
 import { PBLogo } from '../brand/Logo';
-import { useSmartBack } from '../../hooks/useSmartBack';
 
 export function AuthLayout() {
-  const goBack = useSmartBack('/');
-
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
@@ -35,9 +32,14 @@ export function AuthLayout() {
         <Outlet />
 
         <p className="text-center mt-6 text-xs" style={{ color: 'rgba(241,240,218,0.3)' }}>
-          <button type="button" onClick={goBack} className="hover:text-cream transition-colors" style={{ color: 'inherit' }}>
+          {/* Always navigate to the public landing page — never navigate(-1) */}
+          <Link
+            to="/"
+            className="hover:text-cream transition-colors"
+            style={{ color: 'inherit' }}
+          >
             Back to home
-          </button>
+          </Link>
         </p>
       </div>
     </div>

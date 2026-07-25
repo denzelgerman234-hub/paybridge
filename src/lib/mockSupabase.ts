@@ -14,6 +14,19 @@
  *    );
  *
  *  And set real values in your .env file.
+ *
+ *  ─── LOCAL DEV AUTH FLOW ──────────────────────────────────
+ *  To test the full auth journey in mock mode:
+ *
+ *  1. Sign up with any email/password → navigates to /verify-email
+ *  2. Try to sign in with the same email → gets "Email not confirmed" error
+ *  3. To simulate a verified session, navigate to:
+ *       /auth/callback?token_hash=valid&type=email
+ *  4. To simulate an expired link:
+ *       /auth/callback?token_hash=expired&type=email
+ *  5. To simulate an already-used link:
+ *       /auth/callback?token_hash=used&type=email
+ *  6. Any other token_hash → invalid link state
  * ============================================================
  */
 
@@ -33,6 +46,12 @@ import {
 let _session: { user: { id: string; email: string } } | null = null;
 type AuthListener = (event: string, session: typeof _session) => void;
 const _authListeners: AuthListener[] = [];
+
+/**
+ * Users who have signed up but not yet "verified" their email.
+ * In mock mode, sign-in for these users will return an email_not_confirmed error.
+ */
+const _pendingVerification = new Map<string, { id: string; password: string; profile: Record<string, unknown> }>();
 
 function _notifyAuth(event: string) {
   _authListeners.forEach((fn) => fn(event, _session));
@@ -199,8 +218,19 @@ export const supabase = {
     },
 
     async signInWithPassword({ email, password }: { email: string; password: string }) {
-      // Accept any non-empty credentials in local mode
       if (!email || !password) return { error: { message: 'Email and password required' } };
+
+      // Check if this email is in the pending-verification pool (signed up but not verified)
+      if (_pendingVerification.has(email)) {
+        return {
+          error: {
+            code: 'email_not_confirmed',
+            message: 'Email not confirmed',
+          },
+        };
+      }
+
+      // Accept any non-empty credentials in local mode (for the pre-seeded mock user)
       _session = { user: { id: MOCK_USER_ID, email } };
       // Update the profile's id to match (in case email changed)
       const prof = DB.worker_profiles.find((p) => p['id'] === MOCK_USER_ID);
@@ -209,10 +239,11 @@ export const supabase = {
       return { error: null };
     },
 
-    async signUp({ email, options }: { email: string; password: string; options?: { data?: Record<string, unknown> } }) {
-      // Create a new mock profile
+    async signUp({ email, password, options }: { email: string; password: string; options?: { data?: Record<string, unknown> } }) {
+      // Create a new mock profile but do NOT create a session.
+      // The user must "verify" their email first (via /auth/callback?token_hash=valid).
       const id = crypto.randomUUID();
-      const newProfile = {
+      const newProfile: Record<string, unknown> = {
         id,
         full_name: options?.data?.['full_name'] ?? 'New Worker',
         phone: options?.data?.['phone'] ?? '',
@@ -229,15 +260,84 @@ export const supabase = {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+
+      // Store in pending pool — sign-in will be blocked until verified
+      _pendingVerification.set(email, { id, password, profile: newProfile });
       DB.worker_profiles.push(newProfile);
-      _session = { user: { id, email } };
-      _notifyAuth('SIGNED_IN');
+
+      // Do NOT notify SIGNED_IN — the user must verify their email first.
       return { error: null };
+    },
+
+    /**
+     * Simulates resending the verification email.
+     * In mock mode this always succeeds. The real verification still happens
+     * via /auth/callback?token_hash=valid.
+     */
+    async resend({ type: _type, email }: { type: string; email: string }) {
+      if (!_pendingVerification.has(email)) {
+        // If not in pending pool, already verified — treat as success silently
+        return { error: null };
+      }
+      // Simulate email resent successfully
+      return { error: null };
+    },
+
+    /**
+     * Simulates clicking a verification link.
+     * token_hash values and their outcomes:
+     *   'valid'   → verification succeeds, session created
+     *   'expired' → returns expiry error
+     *   'used'    → returns already-used error
+     *   anything else → returns invalid-token error
+     */
+    async verifyOtp({ token_hash, type: _type }: { token_hash: string; type: string }) {
+      if (token_hash === 'valid') {
+        // Pick the first pending user or fall back to mock user
+        const pending = _pendingVerification.entries().next().value;
+        if (pending) {
+          const [email, { id }] = pending as [string, { id: string; password: string; profile: Record<string, unknown> }];
+          _pendingVerification.delete(email);
+          _session = { user: { id, email } };
+        } else {
+          // No pending user — sign in as the default mock user
+          _session = { user: { id: MOCK_USER_ID, email: 'worker@paybridge.com' } };
+        }
+        _notifyAuth('SIGNED_IN');
+        return { data: { user: _session?.user }, error: null };
+      }
+
+      if (token_hash === 'expired') {
+        return {
+          data: null,
+          error: { code: 'otp_expired', message: 'Token has expired or is invalid' },
+        };
+      }
+
+      if (token_hash === 'used') {
+        return {
+          data: null,
+          error: { code: 'otp_disabled', message: 'Email link is invalid or has already been used' },
+        };
+      }
+
+      // Any other token — invalid
+      return {
+        data: null,
+        error: { code: 'otp_expired', message: 'Invalid verification token' },
+      };
     },
 
     async signOut() {
       _session = null;
       _notifyAuth('SIGNED_OUT');
+      return { error: null };
+
+    },
+
+    async resetPasswordForEmail(email: string) {
+      // Simulate sending reset email — always succeeds in mock mode
+      console.log(`[mock] Password reset email sent to ${email}`);
       return { error: null };
     },
   },

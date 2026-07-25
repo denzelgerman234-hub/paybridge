@@ -5,9 +5,15 @@ interface AppState {
   profile: WorkerProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True when user has signed up but not yet confirmed their email. */
+  isEmailUnverified: boolean;
+  /** Email stored during signup so the verify-email page can display / resend to it. */
+  pendingEmail: string;
   setProfile: (profile: WorkerProfile | null) => void;
   setLoading: (loading: boolean) => void;
   setAuthenticated: (auth: boolean) => void;
+  setEmailUnverified: (unverified: boolean) => void;
+  setPendingEmail: (email: string) => void;
   updateBadge: (badge: BadgeTier) => void;
   updateOnboardingStep: (step: WorkerProfile['onboarding_step'], completed?: boolean) => void;
   addCompletedGig: () => void;
@@ -19,9 +25,13 @@ export const useAppStore = create<AppState>((set) => ({
   profile: null,
   isLoading: true,
   isAuthenticated: false,
+  isEmailUnverified: false,
+  pendingEmail: '',
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
   setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+  setEmailUnverified: (isEmailUnverified) => set({ isEmailUnverified }),
+  setPendingEmail: (pendingEmail) => set({ pendingEmail }),
   updateBadge: (badge) =>
     set((state) => ({
       profile: state.profile ? { ...state.profile, badge } : null,

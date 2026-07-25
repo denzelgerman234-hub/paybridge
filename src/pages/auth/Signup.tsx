@@ -23,11 +23,13 @@ export function Signup() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
+    if (form.password.length < 8) { setError('Password must be at least 8 characters'); return; }
     setError(''); setLoading(true);
     try {
+      // useAuth.signUp stores the email, sets isEmailUnverified, then navigates to /verify-email
       await signUp(form.email, form.password, form.fullName, form.phone, form.country);
     } catch (err: any) {
-      setError(err.message || 'Signup failed');
+      setError(err.message || 'Account creation failed. Please try again.');
     } finally {
       setLoading(false);
     }

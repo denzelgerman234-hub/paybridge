@@ -20,8 +20,11 @@ import { TermsPage }           from './pages/static/Terms';
 import { CodeOfConduct }       from './pages/static/CodeOfConduct';
 
 // Auth pages
-import { Login }  from './pages/auth/Login';
-import { Signup } from './pages/auth/Signup';
+import { Login }          from './pages/auth/Login';
+import { Signup }         from './pages/auth/Signup';
+import { VerifyEmail }    from './pages/auth/VerifyEmail';
+import { ForgotPassword } from './pages/auth/ForgotPassword';
+import { AuthCallback }   from './pages/auth/AuthCallback';
 
 // Onboarding
 import { OnboardingProfile }  from './pages/onboarding/Profile';
@@ -78,34 +81,6 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-import { Mail } from 'lucide-react';
-
-// Simple fallback pages for auth flow
-function VerifyEmailPage() {
-  return (
-    <div className="card p-8 text-center">
-      <div className="w-12 h-12 rounded mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)' }}>
-        <Mail size={20} strokeWidth={1.5} style={{ color: '#C9A84C' }} />
-      </div>
-      <h1 className="text-xl font-black mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#F1F0DA' }}>Check Your Email</h1>
-      <p className="text-sm" style={{ color: 'rgba(241,240,218,0.5)' }}>
-        We've sent a verification link to your email. Click it to activate your account.
-      </p>
-    </div>
-  );
-}
-
-function ForgotPasswordPage() {
-  return (
-    <div className="card p-6">
-      <h1 className="text-xl font-black mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#F1F0DA' }}>Reset Password</h1>
-      <p className="text-sm mb-5" style={{ color: 'rgba(241,240,218,0.5)' }}>Enter your email and we'll send a reset link.</p>
-      <input className="input-dark mb-4" type="email" placeholder="you@email.com" />
-      <button className="btn-primary w-full">Send Reset Link</button>
-    </div>
-  );
-}
-
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -139,12 +114,19 @@ export default function App() {
           <Route path="/code-of-conduct" element={<CodeOfConduct />} />
         </Route>
 
-        {/* ── Auth ───────────────────────────────────────── */}
+        {/* ── Auth ────────────────────────────────────────── */}
         <Route element={<AuthLayout />}>
           <Route path="/login"           element={<Login />} />
           <Route path="/signup"          element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/verify-email"    element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-email"    element={<VerifyEmail />} />
+          {/*
+           * /auth/callback — Supabase email verification redirect target.
+           * Must also be configured in Supabase dashboard:
+           *   Authentication → URL Configuration → Redirect URLs
+           *   Add: <your-domain>/auth/callback
+           */}
+          <Route path="/auth/callback"   element={<AuthCallback />} />
         </Route>
 
         {/* ── Onboarding ─────────────────────────────────── */}
@@ -193,6 +175,3 @@ export default function App() {
     </>
   );
 }
-
-
-

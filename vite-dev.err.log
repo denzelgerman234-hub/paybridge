@@ -1,0 +1,479 @@
+[2m1:00:20 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\Solomon\paybridge-workers\src\pages\AccountPage.tsx: Adjacent JSX elements must be wrapped in an enclosing tag. Did you want a JSX fragment <>...</>? (794:6)
+
+[0m [90m 792 |[31m           [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m 793 |[31m         [33m<[31m[33m/[31m[33mform[31m[33m>[31m
+[31m[1m>[22m[31m[90m 794 |[31m       [33m<[31m[33m/[31m[33mModal[31m[33m>[31m
+ [90m     |[31m       [31m[1m^[22m[31m
+ [90m 795 |[31m
+ [90m 796 |[31m       [33m<[31m[33mModal[31m
+ [90m 797 |[31m         isOpen[33m=[31m{isTwoFactorModalOpen}[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/pages/AccountPage.tsx[39m:794:6
+[33m  792|            </div>
+  793|          </form>
+  794|        </Modal>
+     |        ^
+  795|  
+  796|        <Modal[39m
+      at constructor (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4754:18)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4761:17)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4774:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10848:21)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:39
+      at TypeScriptParserMixin.tryParse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6924:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:18)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12912:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseModuleItem (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12761:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13333:36)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseProgram (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12639:10)
+      at TypeScriptParserMixin.parseTopLevel (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12629:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14505:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10143:18)
+      at parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14539:38)
+      at parser (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\parser\index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\normalize-file.js:51:37)
+      at normalizeFile.next (<anonymous>)
+      at run (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:261:32)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:273:13
+      at async.call.result.err.err (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:223:11)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:189:28
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\gensync-utils\async.js:67:7
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:113:33
+      at step (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:287:14)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:273:13
+      at async.call.result.err.err (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:223:11)
+[2m1:00:21 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\Solomon\paybridge-workers\src\pages\AccountPage.tsx: Adjacent JSX elements must be wrapped in an enclosing tag. Did you want a JSX fragment <>...</>? (794:6)
+
+[0m [90m 792 |[31m           [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m 793 |[31m         [33m<[31m[33m/[31m[33mform[31m[33m>[31m
+[31m[1m>[22m[31m[90m 794 |[31m       [33m<[31m[33m/[31m[33mModal[31m[33m>[31m
+ [90m     |[31m       [31m[1m^[22m[31m
+ [90m 795 |[31m
+ [90m 796 |[31m       [33m<[31m[33mModal[31m
+ [90m 797 |[31m         isOpen[33m=[31m{isTwoFactorModalOpen}[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/pages/AccountPage.tsx[39m:794:6
+[33m  792|            </div>
+  793|          </form>
+  794|        </Modal>
+     |        ^
+  795|  
+  796|        <Modal[39m
+      at constructor (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4754:18)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4761:17)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4774:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10848:21)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:39
+      at TypeScriptParserMixin.tryParse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6924:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:18)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12912:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseModuleItem (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12761:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13333:36)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseProgram (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12639:10)
+      at TypeScriptParserMixin.parseTopLevel (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12629:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14505:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10143:18)
+      at parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14539:38)
+      at parser (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\parser\index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\normalize-file.js:51:37)
+      at normalizeFile.next (<anonymous>)
+      at run (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:261:32)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:273:13
+      at async.call.result.err.err (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:223:11)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:189:28
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\gensync-utils\async.js:67:7
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:113:33
+      at step (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:287:14)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:273:13
+      at async.call.result.err.err (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:223:11)
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:24:30 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:24:51 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:25:01 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/lib/localDb.ts[39m:885:48
+[33m  
+  [33mCannot use "||" with "??" without parentheses[33m
+  883|          status: 'open',
+  884|          priority: 'urgent',
+  885|          related_gig_id: relatedGig?.id ?? gigId || null,
+     |                                                  ^
+  886|          created_at: now(),
+  887|          updated_at: now(),
+  [39m
+      at failureErrorWithLog (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1472:15)
+      at C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m2:27:30 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:29:58 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m2:29:58 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/Solomon/paybridge-workers/src/lib/localDb.ts:885:48: ERROR: Cannot use "||" with "??" without parentheses
+[2m5:46:35 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\Solomon\paybridge-workers\src\components\account\BankAccountsManager.tsx: Unexpected token (279:21)
+
+[0m [90m 277 |[31m   )[33m;[31m
+ [90m 278 |[31m }
+[31m[1m>[22m[31m[90m 279 |[31m                     [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m     |[31m                      [31m[1m^[22m[31m
+ [90m 280 |[31m                   [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m 281 |[31m                 )}
+ [90m 282 |[31m               [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/components/account/BankAccountsManager.tsx[39m:279:21
+[33m  277|    );
+  278|  }
+  279|                      </div>
+     |                       ^
+  280|                    </div>
+  281|                  )}[39m
+      at constructor (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.unexpected (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6636:16)
+      at TypeScriptParserMixin.jsxParseIdentifier (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4581:12)
+      at TypeScriptParserMixin.jsxParseNamespacedName (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4588:23)
+      at TypeScriptParserMixin.jsxParseElementName (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4597:21)
+      at TypeScriptParserMixin.jsxParseOpeningElementAt (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4673:22)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4698:33)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4761:17)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4774:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10848:21)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:39
+      at TypeScriptParserMixin.tryParse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6924:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:18)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12912:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseModuleItem (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12761:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13333:36)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseProgram (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12639:10)
+      at TypeScriptParserMixin.parseTopLevel (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12629:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14505:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10143:18)
+      at parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14539:38)
+      at parser (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\parser\index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\normalize-file.js:51:37)
+      at normalizeFile.next (<anonymous>)
+      at run (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:261:32)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:273:13
+      at async.call.result.err.err (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:223:11)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:189:28
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\gensync-utils\async.js:67:7
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:113:33
+[2m5:46:36 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\Solomon\paybridge-workers\src\components\account\BankAccountsManager.tsx: Unexpected token (279:21)
+
+[0m [90m 277 |[31m   )[33m;[31m
+ [90m 278 |[31m }
+[31m[1m>[22m[31m[90m 279 |[31m                     [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m     |[31m                      [31m[1m^[22m[31m
+ [90m 280 |[31m                   [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m 281 |[31m                 )}
+ [90m 282 |[31m               [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/Solomon/paybridge-workers/src/components/account/BankAccountsManager.tsx[39m:279:21
+[33m  277|    );
+  278|  }
+  279|                      </div>
+     |                       ^
+  280|                    </div>
+  281|                  )}[39m
+      at constructor (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.unexpected (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6636:16)
+      at TypeScriptParserMixin.jsxParseIdentifier (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4581:12)
+      at TypeScriptParserMixin.jsxParseNamespacedName (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4588:23)
+      at TypeScriptParserMixin.jsxParseElementName (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4597:21)
+      at TypeScriptParserMixin.jsxParseOpeningElementAt (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4673:22)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4698:33)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4761:17)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:4774:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10848:21)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:39
+      at TypeScriptParserMixin.tryParse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:6924:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9792:18)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12912:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseModuleItem (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12761:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13333:36)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseProgram (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12639:10)
+      at TypeScriptParserMixin.parseTopLevel (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:12629:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14505:25)
+      at TypeScriptParserMixin.parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:10143:18)
+      at parse (C:\Users\Solomon\paybridge-workers\node_modules\@babel\parser\lib\index.js:14539:38)
+      at parser (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\parser\index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\normalize-file.js:51:37)
+      at normalizeFile.next (<anonymous>)
+      at run (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transformation\index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:261:32)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:273:13
+      at async.call.result.err.err (C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:223:11)
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:189:28
+      at C:\Users\Solomon\paybridge-workers\node_modules\@babel\core\lib\gensync-utils\async.js:67:7
+      at C:\Users\Solomon\paybridge-workers\node_modules\gensync\index.js:113:33

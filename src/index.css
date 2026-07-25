@@ -1,0 +1,453 @@
+/* ============================================================
+   PayBridge Design System
+   Palette:
+     Navy-950  #0B132F  — page background
+     Navy-900  #0D1632  — cards, sidebar
+     Navy-800  #12203F  — elevated surfaces, hover
+     Cream     #F1F0DA  — primary text
+     Gold      #C9A84C  — primary accent / CTA   [custom]
+     Terra     #C8523D  — danger / alert          [custom]
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --navy-950:   #0B132F;
+    --navy-900:   #0D1632;
+    --navy-800:   #12203F;
+    --navy-700:   #1B2D56;
+    --cream:      #F1F0DA;
+    --cream-dim:  rgba(241, 240, 218, 0.55);
+    --cream-faint:rgba(241, 240, 218, 0.07);
+    --gold:       #C9A84C;
+    --gold-dim:   rgba(201, 168, 76, 0.12);
+    --terra:      #C8523D;
+    --terra-dim:  rgba(200, 82, 61, 0.12);
+    --border:     rgba(241, 240, 218, 0.09);
+    --border-md:  rgba(241, 240, 218, 0.15);
+    --border-gold:rgba(201, 168, 76, 0.35);
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  .grid > *,
+  .flex > * {
+    min-width: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--navy-950);
+    color: var(--cream);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    color: var(--cream);
+    line-height: 1.2;
+  }
+
+  input, textarea, select {
+    outline: none;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  ::selection {
+    background: rgba(201, 168, 76, 0.3);
+    color: var(--cream);
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--navy-950);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(241, 240, 218, 0.15);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 168, 76, 0.4);
+  }
+}
+
+@layer components {
+
+  /* ── Surfaces ─────────────────────────────────────────── */
+
+  .card {
+    background: var(--navy-900);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .card-elevated {
+    background: var(--navy-800);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Legacy alias — keep for existing components */
+  .glass {
+    background: var(--navy-900);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .glass-light {
+    background: var(--navy-800);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* ── Typography helpers ───────────────────────────────── */
+
+  .heading {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 700;
+    color: var(--cream);
+  }
+
+  .label-caps {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+  }
+
+  /* Gradient text — now gold-based, not purple */
+  .text-gradient {
+    background: linear-gradient(135deg, #F1F0DA 0%, #C9A84C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #C9A84C 0%, #E5C97A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Buttons ──────────────────────────────────────────── */
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 20px;
+    border-radius: 4px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--navy-950);
+    background: var(--gold);
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn-primary:hover {
+    background: #D4B55A;
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 20px;
+    border-radius: 4px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--cream);
+    background: transparent;
+    border: 1px solid var(--border-md);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn-secondary:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: var(--gold-dim);
+  }
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--cream-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .btn-ghost:hover {
+    color: var(--cream);
+    background: var(--cream-faint);
+  }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 20px;
+    border-radius: 4px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--cream);
+    background: var(--terra);
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-danger:hover { opacity: 0.88; }
+
+  /* ── Inputs ───────────────────────────────────────────── */
+
+  .input-dark {
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 400;
+    background: var(--navy-800);
+    border: 1px solid var(--border);
+    color: var(--cream);
+    transition: border-color 0.15s;
+  }
+  .input-dark::placeholder {
+    color: rgba(241, 240, 218, 0.3);
+  }
+  .input-dark:focus {
+    border-color: var(--gold);
+    background: var(--navy-800);
+  }
+  .input-dark:hover:not(:focus) {
+    border-color: var(--border-md);
+  }
+
+  /* ── Status badges ────────────────────────────────────── */
+  /* Square-ish, all-caps, minimal — no pill shape */
+
+  .status-base {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .status-open        { @apply status-base; background: rgba(201,168,76,0.12); color: #C9A84C; border: 1px solid rgba(201,168,76,0.25); }
+  .status-funded      { @apply status-base; background: rgba(241,240,218,0.07); color: #F1F0DA; border: 1px solid rgba(241,240,218,0.15); }
+  .status-in_progress { @apply status-base; background: rgba(201,168,76,0.12); color: #D4B55A; border: 1px solid rgba(201,168,76,0.2); }
+  .status-completed   { @apply status-base; background: rgba(100,180,120,0.1); color: #7DC99A; border: 1px solid rgba(100,180,120,0.2); }
+  .status-cancelled   { @apply status-base; background: var(--terra-dim); color: #C8523D; border: 1px solid rgba(200,82,61,0.2); }
+  .status-accepted    { @apply status-base; background: rgba(241,240,218,0.07); color: #B8C8E0; border: 1px solid rgba(241,240,218,0.12); }
+  .status-verified    { @apply status-base; background: rgba(100,180,120,0.1); color: #7DC99A; border: 1px solid rgba(100,180,120,0.2); }
+  .status-pending     { @apply status-base; background: rgba(201,168,76,0.1); color: #C9A84C; border: 1px solid rgba(201,168,76,0.2); }
+  .status-settled     { @apply status-base; background: rgba(241,240,218,0.07); color: #F1F0DA; border: 1px solid rgba(241,240,218,0.15); }
+  .status-earned      { @apply status-base; background: rgba(201,168,76,0.12); color: #C9A84C; border: 1px solid rgba(201,168,76,0.2); }
+  .status-failed      { @apply status-base; background: var(--terra-dim); color: #C8523D; border: 1px solid rgba(200,82,61,0.2); }
+  .status-sent        { @apply status-base; background: rgba(241,240,218,0.07); color: #B8C8E0; border: 1px solid rgba(241,240,218,0.12); }
+  .status-confirmed   { @apply status-base; background: rgba(100,180,120,0.1); color: #7DC99A; border: 1px solid rgba(100,180,120,0.2); }
+  .status-warning     { @apply status-base; background: rgba(201,168,76,0.12); color: #C9A84C; border: 1px solid rgba(201,168,76,0.2); }
+  .status-resolved    { @apply status-base; background: rgba(100,180,120,0.1); color: #7DC99A; border: 1px solid rgba(100,180,120,0.2); }
+  .status-proof_rejected { @apply status-base; background: var(--terra-dim); color: #C8523D; border: 1px solid rgba(200,82,61,0.2); }
+
+  /* ── Nav / Sidebar active link ────────────────────────── */
+  .nav-active {
+    background: var(--gold-dim);
+    color: var(--gold);
+    border-left: 2px solid var(--gold);
+  }
+  .nav-inactive {
+    color: var(--cream-dim);
+    border-left: 2px solid transparent;
+  }
+  .nav-inactive:hover {
+    background: var(--cream-faint);
+    color: var(--cream);
+  }
+
+  /* ── Table helpers ────────────────────────────────────── */
+  .table-header {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .table-row {
+    border-bottom: 1px solid rgba(241, 240, 218, 0.05);
+    transition: background 0.1s;
+  }
+  .table-row:hover {
+    background: rgba(241, 240, 218, 0.03);
+  }
+  .table-cell {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--cream);
+  }
+
+  .overflow-x-auto {
+    max-width: 100%;
+  }
+
+  .overflow-x-auto > table {
+    min-width: max-content;
+  }
+
+  /* ── Divider ──────────────────────────────────────────── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Scrollbar hide ───────────────────────────────────── */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Border utilities ─────────────────────────────────── */
+  .border-subtle  { border: 1px solid var(--border); }
+  .border-medium  { border: 1px solid var(--border-md); }
+  .border-gold    { border: 1px solid var(--border-gold); }
+  .border-terra   { border: 1px solid rgba(200,82,61,0.3); }
+
+  /* ── Animations ───────────────────────────────────────── */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-right {
+    from { transform: translateX(24px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes pulse-gold {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+  }
+
+  .animate-fade-in        { animation: fade-in 0.25s ease both; }
+  .animate-slide-in-right { animation: slide-in-right 0.2s ease both; }
+  .animate-pulse-gold     { animation: pulse-gold 2s ease infinite; }
+
+  /* ── Legacy glow classes — neutralised ───────────────── */
+  .border-glow       { border: 1px solid var(--border-gold); }
+  .border-glow-accent{ border: 1px solid rgba(200,82,61,0.3); }
+
+  /* ── Gold highlight strip ─────────────────────────────── */
+  .gold-line {
+    height: 2px;
+    background: var(--gold);
+    border-radius: 1px;
+  }
+
+  /* ── Stat card accent bar ─────────────────────────────── */
+  .stat-card {
+    background: var(--navy-900);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold);
+    opacity: 0.6;
+  }
+
+  /* ── Section label ────────────────────────────────────── */
+  .section-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+}
+

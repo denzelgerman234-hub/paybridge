@@ -1,0 +1,253 @@
+/**
+ * ============================================================
+ *  MOCK SUPABASE CLIENT
+ *  Mimics @supabase/supabase-js API surface using in-memory
+ *  local data so the app works without real Supabase credentials.
+ *
+ *  TODO: Once your Supabase project is ready, replace this
+ *  entire file with:
+ *
+ *    import { createClient } from '@supabase/supabase-js';
+ *    export const supabase = createClient(
+ *      import.meta.env.VITE_SUPABASE_URL,
+ *      import.meta.env.VITE_SUPABASE_ANON_KEY,
+ *    );
+ *
+ *  And set real values in your .env file.
+ * ============================================================
+ */
+
+import {
+  MOCK_USER_ID,
+  MOCK_PROFILE,
+  MOCK_GIGS,
+  MOCK_DISBURSEMENTS,
+  MOCK_COMMISSIONS,
+  MOCK_PAYOUTS,
+  MOCK_FUNDING_EVENTS,
+} from './mockData';
+
+// ---------------------------------------------------------------------------
+// In-memory session state
+// ---------------------------------------------------------------------------
+let _session: { user: { id: string; email: string } } | null = null;
+type AuthListener = (event: string, session: typeof _session) => void;
+const _authListeners: AuthListener[] = [];
+
+function _notifyAuth(event: string) {
+  _authListeners.forEach((fn) => fn(event, _session));
+}
+
+// ---------------------------------------------------------------------------
+// Tiny in-memory "database" keyed by table name
+// ---------------------------------------------------------------------------
+const DB: Record<string, Record<string, unknown>[]> = {
+  worker_profiles: [MOCK_PROFILE as unknown as Record<string, unknown>],
+  worker_gigs: MOCK_GIGS as unknown as Record<string, unknown>[],
+  worker_disbursements: MOCK_DISBURSEMENTS as unknown as Record<string, unknown>[],
+  commission_ledger: MOCK_COMMISSIONS as unknown as Record<string, unknown>[],
+  commission_payouts: MOCK_PAYOUTS as unknown as Record<string, unknown>[],
+  funding_events: MOCK_FUNDING_EVENTS as unknown as Record<string, unknown>[],
+  training_progress: [],
+  quiz_attempts: [],
+  interview_slots: [],
+  account_health_checks: [],
+};
+
+// Helper to get table rows (returns copy to avoid mutations leaking)
+function getTable(name: string): Record<string, unknown>[] {
+  return DB[name] ? [...DB[name]] : [];
+}
+
+// ---------------------------------------------------------------------------
+// Query builder — fluent API that resolves lazily
+// ---------------------------------------------------------------------------
+type QueryResult<T> = { data: T | null; error: null };
+
+class QueryBuilder<T = Record<string, unknown>> {
+  private _table: string;
+  private _filters: Array<{ key: string; value: unknown }> = [];
+  private _orderKey: string | null = null;
+  private _orderAsc = true;
+  private _single = false;
+  private _updateData: Partial<Record<string, unknown>> | null = null;
+  private _insertData: Partial<Record<string, unknown>> | null = null;
+  private _upsertData: Partial<Record<string, unknown>> | null = null;
+  private _isDelete = false;
+
+  constructor(table: string) {
+    this._table = table;
+  }
+
+  select(_columns = '*'): this { return this; }
+
+  eq(key: string, value: unknown): this {
+    this._filters.push({ key, value });
+    return this;
+  }
+
+  order(key: string, opts?: { ascending?: boolean }): this {
+    this._orderKey = key;
+    this._orderAsc = opts?.ascending !== false;
+    return this;
+  }
+
+  single(): this { this._single = true; return this; }
+
+  update(data: Partial<Record<string, unknown>>): this {
+    this._updateData = data;
+    return this;
+  }
+
+  insert(data: Partial<Record<string, unknown>>): this {
+    this._insertData = data;
+    return this;
+  }
+
+  upsert(data: Partial<Record<string, unknown>>): this {
+    this._upsertData = data;
+    return this;
+  }
+
+  delete(): this { this._isDelete = true; return this; }
+
+  // Resolve promise
+  then<TResult>(
+    onfulfilled: (value: QueryResult<T>) => TResult,
+  ): Promise<TResult> {
+    return Promise.resolve(this._resolve() as QueryResult<T>).then(onfulfilled);
+  }
+
+  private _resolve(): QueryResult<unknown> {
+    const table = this._table;
+
+    if (this._insertData) {
+      const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...this._insertData };
+      DB[table] = DB[table] ? [...DB[table], row] : [row];
+      return { data: row, error: null };
+    }
+
+    if (this._upsertData) {
+      const row = this._upsertData as Record<string, unknown>;
+      const idx = DB[table]?.findIndex((r) => r['id'] === row['id']);
+      if (idx !== undefined && idx >= 0) {
+        DB[table][idx] = { ...DB[table][idx], ...row, updated_at: new Date().toISOString() };
+      } else {
+        DB[table] = DB[table] ? [...DB[table], { created_at: new Date().toISOString(), ...row }] : [row];
+      }
+      return { data: row, error: null };
+    }
+
+    let rows = getTable(table);
+
+    if (this._updateData) {
+      const updates = this._updateData;
+      rows = rows.map((r) => {
+        const matches = this._filters.every(({ key, value }) => r[key] === value);
+        return matches ? { ...r, ...updates, updated_at: new Date().toISOString() } : r;
+      });
+      DB[table] = rows;
+      return { data: rows, error: null };
+    }
+
+    if (this._isDelete) {
+      DB[table] = rows.filter((r) =>
+        !this._filters.every(({ key, value }) => r[key] === value)
+      );
+      return { data: null, error: null };
+    }
+
+    // SELECT
+    rows = rows.filter((r) =>
+      this._filters.every(({ key, value }) => r[key] === value)
+    );
+
+    if (this._orderKey) {
+      const key = this._orderKey;
+      rows = [...rows].sort((a, b) => {
+        const av = a[key] as string, bv = b[key] as string;
+        return this._orderAsc ? av?.localeCompare(bv) : bv?.localeCompare(av);
+      });
+    }
+
+    if (this._single) return { data: rows[0] ?? null, error: null };
+    return { data: rows, error: null };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mock Supabase client (matches the subset of the API used by this app)
+// ---------------------------------------------------------------------------
+export const supabase = {
+  from(table: string) {
+    return new QueryBuilder(table);
+  },
+
+  auth: {
+    onAuthStateChange(fn: AuthListener) {
+      _authListeners.push(fn);
+      // Immediately fire with current session (mirrors Supabase behaviour)
+      setTimeout(() => fn('INITIAL_SESSION', _session), 0);
+      return { data: { subscription: { unsubscribe: () => {
+        const idx = _authListeners.indexOf(fn);
+        if (idx >= 0) _authListeners.splice(idx, 1);
+      }}}, error: null };
+    },
+
+    async getSession() {
+      return { data: { session: _session }, error: null };
+    },
+
+    async signInWithPassword({ email, password }: { email: string; password: string }) {
+      // Accept any non-empty credentials in local mode
+      if (!email || !password) return { error: { message: 'Email and password required' } };
+      _session = { user: { id: MOCK_USER_ID, email } };
+      // Update the profile's id to match (in case email changed)
+      const prof = DB.worker_profiles.find((p) => p['id'] === MOCK_USER_ID);
+      if (prof) (prof as Record<string, unknown>)['email'] = email;
+      _notifyAuth('SIGNED_IN');
+      return { error: null };
+    },
+
+    async signUp({ email, options }: { email: string; password: string; options?: { data?: Record<string, unknown> } }) {
+      // Create a new mock profile
+      const id = crypto.randomUUID();
+      const newProfile = {
+        id,
+        full_name: options?.data?.['full_name'] ?? 'New Worker',
+        phone: options?.data?.['phone'] ?? '',
+        country: options?.data?.['country'] ?? '',
+        avatar_url: null,
+        badge: 'trainee',
+        total_gigs_completed: 0,
+        total_disbursed: 0,
+        total_earned: 0,
+        rating: 0,
+        onboarding_step: 'profile',
+        onboarding_completed: false,
+        account_health: 'healthy',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      DB.worker_profiles.push(newProfile);
+      _session = { user: { id, email } };
+      _notifyAuth('SIGNED_IN');
+      return { error: null };
+    },
+
+    async signOut() {
+      _session = null;
+      _notifyAuth('SIGNED_OUT');
+      return { error: null };
+    },
+  },
+
+  storage: {
+    from(_bucket: string) {
+      return {
+        upload: async () => ({ data: null, error: null }),
+        getPublicUrl: (_path: string) => ({ data: { publicUrl: '' } }),
+      };
+    },
+  },
+} as const;

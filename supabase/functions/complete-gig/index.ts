@@ -1,13 +1,17 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { json, readJson, requireAdmin, requirePost, requiredString, serviceClient } from '../_shared/auth.ts';
 
 serve(async (req) => {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { gig_id, worker_id } = await req.json();
+    const methodError = await requirePost(req);
+    if (methodError) return methodError;
+
+    const supabase = serviceClient();
+    const auth = await requireAdmin(req, supabase);
+    if ('response' in auth) return auth.response;
+
+    const body = await readJson(req);
+    const gig_id = requiredString(body.gig_id, 'gig_id');
 
     const { data: gig } = await supabase
       .from('worker_gigs')
@@ -15,8 +19,11 @@ serve(async (req) => {
       .eq('id', gig_id)
       .single();
 
-    if (!gig) return new Response(JSON.stringify({ error: 'Gig not found' }), { status: 404 });
-    if (gig.worker_id !== worker_id) return new Response(JSON.stringify({ error: 'Not assigned' }), { status: 403 });
+    if (!gig) return json({ error: 'Gig not found' }, 404);
+    if (!gig.worker_id) return json({ error: 'Gig is not assigned to a worker' }, 400);
+    if (gig.status === 'completed') return json({ error: 'Gig is already completed' }, 400);
+
+    const worker_id = gig.worker_id;
 
     const { error: gigError } = await supabase
       .from('worker_gigs')
@@ -26,11 +33,14 @@ serve(async (req) => {
     if (gigError) throw gigError;
 
     const commissionAmount = Number(gig.commission_amount);
-    await supabase.from('commission_ledger').insert({
+    await supabase.from('commission_ledger').upsert({
       worker_id,
       gig_id,
       amount: commissionAmount,
       status: 'earned',
+    }, {
+      onConflict: 'worker_id,gig_id',
+      ignoreDuplicates: true,
     });
 
     const { data: profile } = await supabase
@@ -55,10 +65,8 @@ serve(async (req) => {
       })
       .eq('id', worker_id);
 
-    return new Response(JSON.stringify({ success: true, commission_amount: commissionAmount }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ success: true, commission_amount: commissionAmount });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);
   }
 });

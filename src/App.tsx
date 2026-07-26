@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
@@ -58,7 +59,7 @@ import { AdminCommissions }  from './pages/admin/AdminCommissions';
 import { AdminCompliance }   from './pages/admin/AdminCompliance';
 import { useAdminStore }     from './stores/adminStore';
 
-// ─── Route guards ────────────────────────────────────────────────────────────
+// Route guards
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -76,12 +77,18 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAdminAuth } = useAdminStore();
+  const { isAdminAuth, isAdminLoading, initAdminSession } = useAdminStore();
+
+  useEffect(() => {
+    initAdminSession();
+  }, [initAdminSession]);
+
+  if (isAdminLoading) return <LoadingSpinner text="Checking admin access..." />;
   if (!isAdminAuth) return <Navigate to="/admin/login" replace />;
   return <>{children}</>;
 }
 
-// ─── App ─────────────────────────────────────────────────────────────────────
+// App
 
 export default function App() {
   return (
@@ -102,7 +109,7 @@ export default function App() {
       />
 
       <Routes>
-        {/* ── Public ─────────────────────────────────────── */}
+        {/* Public */}
         <Route element={<PublicLayout />}>
           <Route path="/"                element={<LandingPage />} />
           <Route path="/apply"           element={<ApplyPage />} />
@@ -114,22 +121,22 @@ export default function App() {
           <Route path="/code-of-conduct" element={<CodeOfConduct />} />
         </Route>
 
-        {/* ── Auth ────────────────────────────────────────── */}
+        {/* Auth */}
         <Route element={<AuthLayout />}>
           <Route path="/login"           element={<Login />} />
           <Route path="/signup"          element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-email"    element={<VerifyEmail />} />
           {/*
-           * /auth/callback — Supabase email verification redirect target.
+           * /auth/callback - Supabase email verification redirect target.
            * Must also be configured in Supabase dashboard:
-           *   Authentication → URL Configuration → Redirect URLs
+           *   Authentication -> URL Configuration -> Redirect URLs
            *   Add: <your-domain>/auth/callback
            */}
           <Route path="/auth/callback"   element={<AuthCallback />} />
         </Route>
 
-        {/* ── Onboarding ─────────────────────────────────── */}
+        {/* Onboarding */}
         <Route element={<OnboardingRoute><DashboardLayout /></OnboardingRoute>}>
           <Route path="/onboarding/profile"   element={<OnboardingProfile />} />
           <Route path="/onboarding/training"  element={<OnboardingTraining />} />
@@ -139,7 +146,7 @@ export default function App() {
           <Route path="/onboarding/payout"    element={<OnboardingPayout />} />
         </Route>
 
-        {/* ── Protected dashboard ────────────────────────── */}
+        {/* Protected dashboard */}
         <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route path="/dashboard"      element={<DashboardPage />} />
           <Route path="/gigs"           element={<Navigate to="/gigs/available" replace />} />
@@ -155,7 +162,7 @@ export default function App() {
           <Route path="/support"        element={<SupportPage />} />
         </Route>
 
-        {/* ── Admin ─────────────────────────────────────────── */}
+        {/* Admin */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route path="/admin"               element={<AdminOverview />} />
@@ -169,7 +176,7 @@ export default function App() {
           <Route path="/admin/compliance"    element={<AdminCompliance />} />
         </Route>
 
-        {/* ── Catch-all ──────────────────────────────────────── */}
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

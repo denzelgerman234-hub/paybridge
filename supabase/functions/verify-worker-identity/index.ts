@@ -1,13 +1,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { json, readJson, requireAdmin, requirePost, requiredString, serviceClient } from '../_shared/auth.ts';
 
 serve(async (req) => {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { worker_id, document_id } = await req.json();
+    const methodError = await requirePost(req);
+    if (methodError) return methodError;
+
+    const supabase = serviceClient();
+    const auth = await requireAdmin(req, supabase);
+    if ('response' in auth) return auth.response;
+
+    const body = await readJson(req);
+    const worker_id = requiredString(body.worker_id, 'worker_id');
+    const document_id = requiredString(body.document_id, 'document_id');
 
     const { data: doc } = await supabase
       .from('worker_documents')
@@ -16,7 +21,8 @@ serve(async (req) => {
       .eq('worker_id', worker_id)
       .single();
 
-    if (!doc) return new Response(JSON.stringify({ error: 'Document not found' }), { status: 404 });
+    if (!doc) return json({ error: 'Document not found' }, 404);
+    if (doc.verified) return json({ error: 'Document is already verified' }, 400);
 
     await supabase
       .from('worker_documents')
@@ -46,10 +52,8 @@ serve(async (req) => {
         });
     }
 
-    return new Response(JSON.stringify({ success: true, identity_verified: allVerified }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ success: true, identity_verified: allVerified });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);
   }
 });

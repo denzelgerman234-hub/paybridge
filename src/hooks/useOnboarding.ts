@@ -19,7 +19,7 @@ export function useOnboarding() {
     setIsSubmitting(true);
     const { error } = await supabase
       .from('worker_profiles')
-      .upsert({ id: profile!.id, ...data, onboarding_step: 'training' })
+      .update({ ...data, onboarding_step: 'training' })
       .eq('id', profile!.id);
 
     if (error) throw error;
@@ -63,12 +63,9 @@ export function useOnboarding() {
     setIsSubmitting(false);
   }
 
-  async function saveBankInfo(data: { account_type: string; account_number: string; bank_name: string }) {
+  async function saveBankInfo(_data: { account_type: string; account_number: string; bank_name: string }) {
     setIsSubmitting(true);
-    await supabase.from('account_health_checks').insert({
-      worker_id: profile!.id,
-      disbursement_account_type: data.account_type,
-    });
+    await supabase.from('worker_profiles').update({ onboarding_step: 'payout' }).eq('id', profile!.id);
     updateOnboardingStep('payout');
     navigate('/onboarding/payout');
     setIsSubmitting(false);

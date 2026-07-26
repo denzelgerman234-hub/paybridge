@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { RiShieldLine, RiMailLine, RiLockLine } from 'react-icons/ri';
+import { useEffect, useState } from 'react';
+import { RiShieldLine, RiMailLine, RiLockLine, RiEyeLine, RiEyeOffLine } from 'react-icons/ri';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../../stores/adminStore';
 import { PBLogo, PBMark } from '../../components/brand/Logo';
@@ -10,22 +10,38 @@ const DIM   = 'rgba(241,240,218,0.45)';
 const GOLD  = '#C9A84C';
 
 export function AdminLogin() {
-  const { adminLogin } = useAdminStore();
+  const { adminLogin, initAdminSession, isAdminAuth } = useAdminStore();
   const navigate = useNavigate();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+
+  useEffect(() => {
+    initAdminSession();
+  }, [initAdminSession]);
+
+  useEffect(() => {
+    if (isAdminAuth) navigate('/admin');
+  }, [isAdminAuth, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 500));
-    const ok = adminLogin(email, password);
-    setLoading(false);
-    if (ok) navigate('/admin');
-    else setError('Invalid admin credentials');
+
+    try {
+      await adminLogin(email, password);
+      navigate('/admin');
+    } catch (err) {
+      const message = err instanceof Error && err.message === 'Admin access required'
+        ? 'This account is not authorized for admin access.'
+        : 'Invalid admin credentials';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const labelStyle: React.CSSProperties = {
@@ -88,13 +104,23 @@ export function AdminLogin() {
               <div className="relative">
                 <RiLockLine size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: DIM }} strokeWidth={1.5} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="********"
-                  className="input-dark pl-9"
+                  className="input-dark pl-9 pr-12"
                   required
                 />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword(prev => !prev)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: DIM }}
+                >
+                  {showPassword ? <RiEyeOffLine size={17} /> : <RiEyeLine size={17} />}
+                </button>
               </div>
             </div>
 
@@ -117,18 +143,9 @@ export function AdminLogin() {
             </button>
           </form>
 
-          {/* Local hint */}
-          <div
-            className="mt-5 p-3 rounded text-xs text-center"
-            style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}
-          >
-            <p className="font-bold mb-1" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '0.06em' }}>
-              ADMIN ACCESS
-            </p>
-            <p style={{ color: DIM }}>
-              <code style={{ color: CREAM }}>admin@paybridge.work</code> / <code style={{ color: CREAM }}>admin123</code>
-            </p>
-          </div>
+          <p className="mt-5 text-center text-[11px] leading-relaxed" style={{ color: DIM }}>
+            Use a Supabase Auth account with admin app metadata enabled.
+          </p>
         </div>
       </div>
     </div>

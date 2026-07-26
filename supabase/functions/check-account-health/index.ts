@@ -1,13 +1,17 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { json, readJson, requireAdmin, requirePost, requiredString, serviceClient } from '../_shared/auth.ts';
 
 serve(async (req) => {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { worker_id } = await req.json();
+    const methodError = await requirePost(req);
+    if (methodError) return methodError;
+
+    const supabase = serviceClient();
+    const auth = await requireAdmin(req, supabase);
+    if ('response' in auth) return auth.response;
+
+    const body = await readJson(req);
+    const worker_id = requiredString(body.worker_id, 'worker_id');
 
     const { data: profile } = await supabase
       .from('worker_profiles')
@@ -15,7 +19,7 @@ serve(async (req) => {
       .eq('id', worker_id)
       .single();
 
-    if (!profile) return new Response(JSON.stringify({ error: 'Worker not found' }), { status: 404 });
+    if (!profile) return json({ error: 'Worker not found' }, 404);
 
     const { data: healthCheck } = await supabase
       .from('account_health_checks')
@@ -33,10 +37,8 @@ serve(async (req) => {
       .update({ account_health: status })
       .eq('id', worker_id);
 
-    return new Response(JSON.stringify({ status, healthCheck }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ status, healthCheck });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);
   }
 });

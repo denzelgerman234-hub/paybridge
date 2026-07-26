@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -9,8 +10,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   suffix?: React.ReactNode;
 }
 
-export function Input({ label, error, hint, icon, suffix, className, id, ...props }: InputProps) {
+export function Input({ label, error, hint, icon, suffix, className, id, type, ...props }: InputProps) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+  const isPassword = type === 'password';
+  const [showPassword, setShowPassword] = useState(false);
+  const effectiveType = isPassword && showPassword ? 'text' : type;
+  const trailingControl = isPassword || suffix;
+
   return (
     <div className="space-y-1.5">
       {label && (
@@ -26,16 +32,28 @@ export function Input({ label, error, hint, icon, suffix, className, id, ...prop
         )}
         <input
           id={inputId}
+          type={effectiveType}
           {...props}
           className={cn(
             'input-dark',
             icon ? 'pl-10' : undefined,
-            suffix ? 'pr-12' : undefined,
+            trailingControl ? 'pr-12' : undefined,
             error ? '!border-terra/60 focus:!border-terra' : undefined,
             className,
           )}
         />
-        {suffix && (
+        {isPassword && (
+          <button
+            type="button"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            onClick={() => setShowPassword(prev => !prev)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-cream/50 hover:text-cream transition-colors"
+          >
+            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+          </button>
+        )}
+        {!isPassword && suffix && (
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-cream/50 text-sm">
             {suffix}
           </div>

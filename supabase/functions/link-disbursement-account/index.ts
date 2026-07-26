@@ -1,13 +1,24 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { json, readJson, requirePost, requireUser, requiredString, serviceClient } from '../_shared/auth.ts';
+
+const ACCOUNT_TYPES = new Set(['dedicated', 'shared', 'unknown']);
 
 serve(async (req) => {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { worker_id, account_type } = await req.json();
+    const methodError = await requirePost(req);
+    if (methodError) return methodError;
+
+    const supabase = serviceClient();
+    const auth = await requireUser(req, supabase);
+    if ('response' in auth) return auth.response;
+
+    const body = await readJson(req);
+    const worker_id = auth.user.id;
+    const account_type = requiredString(body.account_type, 'account_type');
+
+    if (!ACCOUNT_TYPES.has(account_type)) {
+      return json({ error: 'Invalid account type' }, 400);
+    }
 
     const { data: existing } = await supabase
       .from('account_health_checks')
@@ -31,10 +42,8 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, message: 'Disbursement account linked' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ success: true, message: 'Disbursement account linked' });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);
   }
 });

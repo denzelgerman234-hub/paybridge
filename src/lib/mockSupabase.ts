@@ -15,18 +15,18 @@
  *
  *  And set real values in your .env file.
  *
- *  ─── LOCAL DEV AUTH FLOW ──────────────────────────────────
+ *  LOCAL DEV AUTH FLOW
  *  To test the full auth journey in mock mode:
  *
- *  1. Sign up with any email/password → navigates to /verify-email
- *  2. Try to sign in with the same email → gets "Email not confirmed" error
+ *  1. Sign up with any email/password -> navigates to /verify-email
+ *  2. Try to sign in with the same email -> gets "Email not confirmed" error
  *  3. To simulate a verified session, navigate to:
  *       /auth/callback?token_hash=valid&type=email
  *  4. To simulate an expired link:
  *       /auth/callback?token_hash=expired&type=email
  *  5. To simulate an already-used link:
  *       /auth/callback?token_hash=used&type=email
- *  6. Any other token_hash → invalid link state
+ *  6. Any other token_hash -> invalid link state
  * ============================================================
  */
 
@@ -43,7 +43,7 @@ import {
 // ---------------------------------------------------------------------------
 // In-memory session state
 // ---------------------------------------------------------------------------
-let _session: { user: { id: string; email: string } } | null = null;
+let _session: { user: { id: string; email: string; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> } } | null = null;
 type AuthListener = (event: string, session: typeof _session) => void;
 const _authListeners: AuthListener[] = [];
 
@@ -79,7 +79,7 @@ function getTable(name: string): Record<string, unknown>[] {
 }
 
 // ---------------------------------------------------------------------------
-// Query builder — fluent API that resolves lazily
+// Query builder - fluent API that resolves lazily
 // ---------------------------------------------------------------------------
 type QueryResult<T> = { data: T | null; error: null };
 
@@ -230,8 +230,15 @@ export const supabase = {
         };
       }
 
-      // Accept any non-empty credentials in local mode (for the pre-seeded mock user)
-      _session = { user: { id: MOCK_USER_ID, email } };
+      const isAdminEmail = email.trim().toLowerCase() === 'admin@paybridge.work';
+      _session = {
+        user: {
+          id: MOCK_USER_ID,
+          email,
+          app_metadata: isAdminEmail ? { role: 'admin' } : {},
+          user_metadata: { full_name: isAdminEmail ? 'PayBridge Admin' : 'PayBridge Worker' },
+        },
+      };
       // Update the profile's id to match (in case email changed)
       const prof = DB.worker_profiles.find((p) => p['id'] === MOCK_USER_ID);
       if (prof) (prof as Record<string, unknown>)['email'] = email;
@@ -261,11 +268,11 @@ export const supabase = {
         updated_at: new Date().toISOString(),
       };
 
-      // Store in pending pool — sign-in will be blocked until verified
+      // Store in pending pool - sign-in will be blocked until verified
       _pendingVerification.set(email, { id, password, profile: newProfile });
       DB.worker_profiles.push(newProfile);
 
-      // Do NOT notify SIGNED_IN — the user must verify their email first.
+      // Do NOT notify SIGNED_IN - the user must verify their email first.
       return { error: null };
     },
 
@@ -276,7 +283,7 @@ export const supabase = {
      */
     async resend({ type: _type, email }: { type: string; email: string }) {
       if (!_pendingVerification.has(email)) {
-        // If not in pending pool, already verified — treat as success silently
+        // If not in pending pool, already verified - treat as success silently
         return { error: null };
       }
       // Simulate email resent successfully
@@ -286,10 +293,10 @@ export const supabase = {
     /**
      * Simulates clicking a verification link.
      * token_hash values and their outcomes:
-     *   'valid'   → verification succeeds, session created
-     *   'expired' → returns expiry error
-     *   'used'    → returns already-used error
-     *   anything else → returns invalid-token error
+     *   'valid'   -> verification succeeds, session created
+     *   'expired' -> returns expiry error
+     *   'used'    -> returns already-used error
+     *   anything else -> returns invalid-token error
      */
     async verifyOtp({ token_hash, type: _type }: { token_hash: string; type: string }) {
       if (token_hash === 'valid') {
@@ -298,10 +305,10 @@ export const supabase = {
         if (pending) {
           const [email, { id }] = pending as [string, { id: string; password: string; profile: Record<string, unknown> }];
           _pendingVerification.delete(email);
-          _session = { user: { id, email } };
+          _session = { user: { id, email, app_metadata: {}, user_metadata: { full_name: 'PayBridge Worker' } } };
         } else {
-          // No pending user — sign in as the default mock user
-          _session = { user: { id: MOCK_USER_ID, email: 'worker@paybridge.com' } };
+          // No pending user - sign in as the default mock user
+          _session = { user: { id: MOCK_USER_ID, email: 'worker@paybridge.com', app_metadata: {}, user_metadata: { full_name: 'PayBridge Worker' } } };
         }
         _notifyAuth('SIGNED_IN');
         return { data: { user: _session?.user }, error: null };
@@ -321,7 +328,7 @@ export const supabase = {
         };
       }
 
-      // Any other token — invalid
+      // Any other token - invalid
       return {
         data: null,
         error: { code: 'otp_expired', message: 'Invalid verification token' },
@@ -336,7 +343,7 @@ export const supabase = {
     },
 
     async resetPasswordForEmail(email: string) {
-      // Simulate sending reset email — always succeeds in mock mode
+      // Simulate sending reset email - always succeeds in mock mode
       console.log(`[mock] Password reset email sent to ${email}`);
       return { error: null };
     },

@@ -1,13 +1,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { json, readJson, requireAdmin, requirePost, requiredString, serviceClient } from '../_shared/auth.ts';
 
 serve(async (req) => {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { disbursement_id, transaction_id } = await req.json();
+    const methodError = await requirePost(req);
+    if (methodError) return methodError;
+
+    const supabase = serviceClient();
+    const auth = await requireAdmin(req, supabase);
+    if ('response' in auth) return auth.response;
+
+    const body = await readJson(req);
+    const disbursement_id = requiredString(body.disbursement_id, 'disbursement_id');
+    const transaction_id = typeof body.transaction_id === 'string' ? body.transaction_id.trim() : null;
 
     const { data: disbursement } = await supabase
       .from('worker_disbursements')
@@ -15,7 +20,10 @@ serve(async (req) => {
       .eq('id', disbursement_id)
       .single();
 
-    if (!disbursement) return new Response(JSON.stringify({ error: 'Disbursement not found' }), { status: 404 });
+    if (!disbursement) return json({ error: 'Disbursement not found' }, 404);
+    if (disbursement.status !== 'sent') {
+      return json({ error: 'Only sent disbursements can be verified' }, 400);
+    }
 
     await supabase
       .from('worker_disbursements')
@@ -40,10 +48,8 @@ serve(async (req) => {
         .eq('id', disbursement.gig_id);
     }
 
-    return new Response(JSON.stringify({ success: true, message: 'Disbursement verified' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ success: true, message: 'Disbursement verified' });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);
   }
 });

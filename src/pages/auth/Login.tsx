@@ -81,7 +81,7 @@ export function Login() {
         <p className="text-xs" style={{ color: DIM }}>Sign in to your PayBridge account</p>
       </div>
 
-      {/* ── Unverified-email panel ──────────────────────────────── */}
+      {/* Unverified-email panel */}
       {showUnverified && (
         <div
           className="mb-5 p-4 rounded-lg"
@@ -94,7 +94,7 @@ export function Login() {
                 Email verification required
               </p>
               <p className="text-xs leading-relaxed" style={{ color: DIM }}>
-                Your account exists but your email address hasn't been verified yet. Check your inbox or request a new verification email.
+                Your account exists but your email address hasn't been verified yet. Check your inbox for the PayBridge verification link from "Supabase Auth".
               </p>
             </div>
           </div>
@@ -102,7 +102,7 @@ export function Login() {
           {resendSuccess && (
             <div className="flex items-center gap-2 mb-3 text-xs" style={{ color: '#10b981' }}>
               <CheckCircle size={14} />
-              <span>Verification email sent — check your inbox.</span>
+              <span>Verification email sent - check for the PayBridge link from "Supabase Auth".</span>
             </div>
           )}
           {resendError && (

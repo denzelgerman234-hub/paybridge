@@ -1,37 +1,48 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { json, readJson, requirePost, requireUser, requiredString, serviceClient } from '../_shared/auth.ts';
 
 serve(async (req) => {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { disbursement_id, worker_id, proof_url } = await req.json();
+    const methodError = await requirePost(req);
+    if (methodError) return methodError;
+
+    const supabase = serviceClient();
+    const auth = await requireUser(req, supabase);
+    if ('response' in auth) return auth.response;
+
+    const body = await readJson(req);
+    const disbursement_id = requiredString(body.disbursement_id, 'disbursement_id');
+    const proof_url = requiredString(body.proof_url, 'proof_url');
+    const transaction_id = typeof body.transaction_id === 'string' ? body.transaction_id.trim() : null;
+    const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
 
     const { data: disbursement } = await supabase
       .from('worker_disbursements')
-      .select('id, status')
+      .select('id, worker_id, status')
       .eq('id', disbursement_id)
       .single();
 
-    if (!disbursement) return new Response(JSON.stringify({ error: 'Disbursement not found' }), { status: 404 });
+    if (!disbursement) return json({ error: 'Disbursement not found' }, 404);
+    if (disbursement.worker_id !== auth.user.id) return json({ error: 'Not assigned to this disbursement' }, 403);
+    if (!['pending', 'failed', 'proof_rejected'].includes(disbursement.status)) {
+      return json({ error: 'Proof cannot be submitted for this disbursement state' }, 400);
+    }
 
     await supabase.from('disbursement_proofs').insert({
       disbursement_id,
+      worker_id: auth.user.id,
       proof_url,
-      uploaded_by: worker_id,
+      transaction_id,
+      notes,
     });
 
     await supabase
       .from('worker_disbursements')
-      .update({ status: 'sent', proof_url, sent_at: new Date().toISOString() })
+      .update({ status: 'sent', proof_url, transaction_id, sent_at: new Date().toISOString() })
       .eq('id', disbursement_id);
 
-    return new Response(JSON.stringify({ success: true, message: 'Proof submitted' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ success: true, message: 'Proof submitted' });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);
   }
 });

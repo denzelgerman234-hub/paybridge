@@ -18,7 +18,7 @@ export function OnboardingProfile() {
     full_name: profile?.full_name || '',
     phone:     profile?.phone     || '',
     country:   profile?.country   || '',
-    city:      '',
+    address_city: profile?.address_city || '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +51,7 @@ export function OnboardingProfile() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Full Legal Name" value={form.full_name} onChange={up('full_name')} placeholder="As on your government ID" required icon={<User size={15} />} />
           <Input label="Phone Number" type="tel" value={form.phone} onChange={up('phone')} placeholder="+1 555 000 1234" required icon={<Phone size={15} />} />
-          <Input label="City" value={form.city} onChange={up('city')} placeholder="Your city" icon={<Globe size={15} />} />
+          <Input label="City" value={form.address_city} onChange={up('address_city')} placeholder="Your city" icon={<Globe size={15} />} />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-cream/50">Country</label>
             <select value={form.country} onChange={up('country')} className="input-dark appearance-none" required>

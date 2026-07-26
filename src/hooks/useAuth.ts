@@ -1,6 +1,7 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, supabaseConfig } from '../lib/supabase';
+import { localDb } from '../lib/localDb';
 import { useAppStore } from '../stores/appStore';
 
 /** Error thrown when the user's email has not yet been confirmed. */
@@ -48,7 +49,7 @@ export function useAuth() {
           // In mock mode we also guard via signInWithPassword.
           setAuthenticated(true);
           setEmailUnverified(false);
-          fetchProfile(session.user.id);
+          fetchProfile(session.user.id, session.user.email);
         } else {
           setAuthenticated(false);
           setProfile(null);
@@ -61,7 +62,7 @@ export function useAuth() {
       ({ data: { session } }: { data: { session: any } }) => {
         if (session?.user) {
           setAuthenticated(true);
-          fetchProfile(session.user.id);
+          fetchProfile(session.user.id, session.user.email);
         } else {
           setLoading(false);
         }
@@ -71,7 +72,7 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function fetchProfile(userId: string) {
+  async function fetchProfile(userId: string, email?: string | null) {
     const { data, error } = await supabase
       .from('worker_profiles')
       .select('*')
@@ -83,6 +84,7 @@ export function useAuth() {
     }
 
     if (data && !error) {
+      localDb.ensureWorker(data as any, email);
       setProfile(data as any);
     }
     setLoading(false);

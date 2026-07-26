@@ -24,6 +24,7 @@ import {
   SupportChatMessage,
   SupportChatThread,
   SupportTicket,
+  WorkerProfile,
 } from '../types/database';
 import { MOCK_USER_ID } from './mockData';
 
@@ -469,6 +470,33 @@ export const localDb = {
 
   snapshot() {
     return load();
+  },
+
+  ensureWorker(profile: WorkerProfile, email?: string | null) {
+    return mutate(state => {
+      const existing = state.workers.find(worker => worker.id === profile.id);
+      const worker: LocalWorkerSummary = {
+        id: profile.id,
+        full_name: profile.full_name,
+        email: email ?? existing?.email ?? '',
+        badge: profile.badge,
+        account_health: profile.account_health,
+        onboarding_completed: profile.onboarding_completed,
+      };
+
+      if (existing) {
+        Object.assign(existing, worker);
+      } else {
+        state.workers.unshift(worker);
+      }
+
+      if (!state.notification_preferences.some(item => item.worker_id === profile.id)) {
+        state.notification_preferences.push(defaultNotificationPreferences(profile.id));
+      }
+      if (!state.security_settings.some(item => item.worker_id === profile.id)) {
+        state.security_settings.push(defaultSecuritySetting(profile.id));
+      }
+    });
   },
 
   listNotifications(workerId?: string) {

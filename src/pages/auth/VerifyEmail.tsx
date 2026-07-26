@@ -115,7 +115,7 @@ export function VerifyEmail() {
           style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}
         >
           <CheckCircle size={14} />
-          <span>Verification email sent — check your inbox.</span>
+          <span>Verification email sent - check your inbox.</span>
         </div>
       )}
       {resendError && (

@@ -4,3 +4,5 @@ dist/
 .env.local
 *.log
 tsconfig.tsbuildinfo
+.supabase/
+supabase/.temp/

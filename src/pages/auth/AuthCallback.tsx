@@ -1,5 +1,5 @@
 /**
- * AuthCallback — Supabase email verification callback handler
+ * AuthCallback - Supabase email verification callback handler
  *
  * Supabase sends a verification link of the form:
  *   <SITE_URL>/auth/callback?token_hash=<token>&type=email
@@ -8,10 +8,10 @@
  * all possible outcomes: success, expired, already-used, and invalid.
  *
  * In local mock mode, use these URLs to test each state:
- *   /auth/callback?token_hash=valid&type=email    → success → dashboard
- *   /auth/callback?token_hash=expired&type=email  → expired link state
- *   /auth/callback?token_hash=used&type=email     → already verified state
- *   /auth/callback?token_hash=anything&type=email → invalid token state
+ *   /auth/callback?token_hash=valid&type=email    -> success -> dashboard
+ *   /auth/callback?token_hash=expired&type=email  -> expired link state
+ *   /auth/callback?token_hash=used&type=email     -> already verified state
+ *   /auth/callback?token_hash=anything&type=email -> invalid token state
  */
 
 import { useEffect, useState } from 'react';
@@ -69,28 +69,33 @@ export function AuthCallback() {
   const [resendError, setResendError] = useState('');
   const [cooldown, setCooldown] = useState(0);
 
+  const code = searchParams.get('code') ?? '';
   const tokenHash = searchParams.get('token_hash') ?? '';
   const type = (searchParams.get('type') ?? 'email') as 'email' | 'signup' | 'recovery';
 
   useEffect(() => {
-    if (!tokenHash) {
+    if (!code && !tokenHash) {
       setState('invalid');
       return;
     }
 
     async function verify() {
-      const { data, error } = await (supabase.auth as any).verifyOtp({
-        token_hash: tokenHash,
-        type,
-      });
+      const { error } = code
+        ? await (supabase.auth as any).exchangeCodeForSession(code)
+        : await (supabase.auth as any).verifyOtp({
+            token_hash: tokenHash,
+            type,
+          });
 
       if (!error) {
-        // Success — a session was established; navigate to dashboard
-        // Small delay so onAuthStateChange can process SIGNED_IN event first
+  // Success
+        // Small delay so onAuthStateChange can process SIGNED_IN event first.
         setTimeout(() => navigate('/dashboard', { replace: true }), 800);
         setState('success');
         return;
       }
+
+      console.error('[paybridge] Email verification callback failed', error);
 
       if (isAlreadyUsedError(error)) {
         setState('already_verified');
@@ -106,14 +111,18 @@ export function AuthCallback() {
     }
 
     verify();
-  }, [tokenHash, type]);
+  }, [code, tokenHash, type, navigate]);
 
   async function handleResend() {
     if (!resendEmail || cooldown > 0 || resendLoading) return;
     setResendLoading(true);
     setResendDone(false);
     setResendError('');
-    const { error } = await (supabase.auth as any).resend({ type: 'signup', email: resendEmail });
+    const { error } = await (supabase.auth as any).resend({
+      type: 'signup',
+      email: resendEmail.trim().toLowerCase(),
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
     setResendLoading(false);
     if (error) {
       setResendError('Could not send the verification email. Please try again.');
@@ -129,16 +138,16 @@ export function AuthCallback() {
     }
   }
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // Loading
   if (state === 'loading') {
     return (
       <Card padding="lg" className="text-center">
-        <LoadingSpinner text="Verifying your email…" fullScreen={false} />
+        <LoadingSpinner text="Verifying your email..." fullScreen={false} />
       </Card>
     );
   }
 
-  // ── Success ───────────────────────────────────────────────────────────────
+  // Success
   if (state === 'success') {
     return (
       <Card padding="lg" className="text-center">
@@ -155,7 +164,7 @@ export function AuthCallback() {
           Email Verified
         </h1>
         <p className="text-sm mb-6" style={{ color: DIM }}>
-          Your email has been confirmed. Taking you to your account…
+          Your email has been confirmed. Taking you to your account...
         </p>
         <div className="flex justify-center">
           <div
@@ -167,7 +176,7 @@ export function AuthCallback() {
     );
   }
 
-  // ── Expired ───────────────────────────────────────────────────────────────
+  // Expired
   if (state === 'expired') {
     return (
       <Card padding="lg" className="text-center">
@@ -193,7 +202,7 @@ export function AuthCallback() {
             style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}
           >
             <CheckCircle size={14} />
-            <span>New verification email sent — check your inbox.</span>
+            <span>New verification email sent - check your inbox.</span>
           </div>
         )}
         {resendError && (
@@ -232,7 +241,7 @@ export function AuthCallback() {
     );
   }
 
-  // ── Already Verified ──────────────────────────────────────────────────────
+  // Already Verified
   if (state === 'already_verified') {
     return (
       <Card padding="lg" className="text-center">
@@ -260,7 +269,7 @@ export function AuthCallback() {
     );
   }
 
-  // ── Invalid ───────────────────────────────────────────────────────────────
+  // Invalid
   return (
     <Card padding="lg" className="text-center">
       <div

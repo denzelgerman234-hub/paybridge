@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseConfig } from '../lib/supabase';
 import { useAppStore } from '../stores/appStore';
 
 /** Error thrown when the user's email has not yet been confirmed. */
@@ -18,6 +18,11 @@ function isUnconfirmedError(err: any): boolean {
     (typeof err?.message === 'string' &&
       err.message.toLowerCase().includes('email not confirmed'))
   );
+}
+
+function authRedirectUrl() {
+  if (typeof window === 'undefined') return undefined;
+  return `${window.location.origin}/auth/callback`;
 }
 
 export function useAuth() {
@@ -73,6 +78,10 @@ export function useAuth() {
       .eq('id', userId)
       .single();
 
+    if (error) {
+      console.error('[paybridge] Failed to fetch worker profile', error);
+    }
+
     if (data && !error) {
       setProfile(data as any);
     }
@@ -80,11 +89,13 @@ export function useAuth() {
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     if (error) {
+      console.error('[paybridge] Supabase signInWithPassword failed', error);
       if (isUnconfirmedError(error)) {
         // Store the email so login page can offer resend
-        setPendingEmail(email);
+        setPendingEmail(normalizedEmail);
         setEmailUnverified(true);
         throw new EmailNotConfirmedError();
       }
@@ -100,23 +111,64 @@ export function useAuth() {
     phone: string,
     country: string,
   ) {
-    const { error } = await supabase.auth.signUp({
-      email,
+    const normalizedEmail = email.trim().toLowerCase();
+    const redirectTo = authRedirectUrl();
+
+    console.info('[paybridge] Starting Supabase signup', {
+      email: normalizedEmail,
+      redirectTo,
+      supabaseHost: supabaseConfig.urlHost,
+      mode: supabaseConfig.mode,
+      isUsingMock: supabaseConfig.isUsingMock,
+      hasSupabaseCredentials: supabaseConfig.hasSupabaseCredentials,
+    });
+
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
       password,
       options: {
-        data: { full_name: fullName, phone, country },
+        emailRedirectTo: redirectTo,
+        data: {
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          country,
+        },
       },
     });
-    if (error) throw error;
-    // Store the email so the verify-email page can display and resend to it
-    setPendingEmail(email);
+
+    if (error) {
+      console.error('[paybridge] Supabase signUp failed', error);
+      throw error;
+    }
+
+    console.info('[paybridge] Supabase signUp succeeded', {
+      userId: data?.user?.id,
+      emailConfirmedAt: data?.user?.email_confirmed_at,
+      hasSession: Boolean(data?.session),
+    });
+
+    if (!data?.user && !supabaseConfig.isUsingMock) {
+      throw new Error('Supabase did not return a user for this signup request. Check the browser Network tab and Supabase Auth logs.');
+    }
+
+    // Store the email so the verify-email page can display and resend to it.
+    setPendingEmail(normalizedEmail);
     setEmailUnverified(true);
-    navigate('/verify-email', { state: { email } });
+    if (typeof window !== 'undefined') localStorage.setItem('pb_pending_email', normalizedEmail);
+    navigate('/verify-email', { state: { email: normalizedEmail } });
   }
 
   async function resendVerification(email: string) {
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
-    if (error) throw error;
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalizedEmail,
+      options: { emailRedirectTo: authRedirectUrl() },
+    });
+    if (error) {
+      console.error('[paybridge] Supabase resend verification failed', error);
+      throw error;
+    }
   }
 
   async function signOut() {

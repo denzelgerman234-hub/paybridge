@@ -112,7 +112,7 @@ export function Navbar() {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
                     <div
-                      className="absolute right-0 mt-1 w-80 max-w-[calc(100vw-2rem)] sm:w-96 z-20 overflow-hidden animate-slide-up"
+                      className="fixed left-4 right-4 top-16 z-20 mt-0 w-auto overflow-hidden animate-slide-up sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-96 sm:max-w-[calc(100vw-2rem)]"
                       style={{ background: NAV_BG, border: `1px solid ${BORDER}`, borderRadius: 6, boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}
                     >
                       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: BORDER }}>

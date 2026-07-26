@@ -41,21 +41,21 @@ type CallbackState =
   | 'already_verified'
   | 'invalid';
 
+function errorText(err: any): string {
+  return [err?.code, err?.error, err?.error_code, err?.message, err?.error_description]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
 function isExpiredError(err: any): boolean {
-  return (
-    err?.code === 'otp_expired' ||
-    (typeof err?.message === 'string' &&
-      (err.message.toLowerCase().includes('expired') ||
-        err.message.toLowerCase().includes('invalid token')))
-  );
+  const text = errorText(err);
+  return text.includes('otp_expired') || text.includes('expired') || text.includes('invalid token');
 }
 
 function isAlreadyUsedError(err: any): boolean {
-  return (
-    err?.code === 'otp_disabled' ||
-    (typeof err?.message === 'string' &&
-      err.message.toLowerCase().includes('already been used'))
-  );
+  const text = errorText(err);
+  return text.includes('otp_disabled') || text.includes('already been used') || text.includes('already verified');
 }
 
 export function AuthCallback() {
@@ -74,36 +74,79 @@ export function AuthCallback() {
   const type = (searchParams.get('type') ?? 'email') as 'email' | 'signup' | 'recovery';
 
   useEffect(() => {
-    if (!code && !tokenHash) {
-      setState('invalid');
-      return;
+    function markSuccess() {
+      setState('success');
+      setTimeout(() => navigate('/dashboard', { replace: true }), 800);
     }
 
-    async function verify() {
-      const { error } = code
-        ? await (supabase.auth as any).exchangeCodeForSession(code)
-        : await (supabase.auth as any).verifyOtp({
-            token_hash: tokenHash,
-            type,
-          });
-
-      if (!error) {
-  // Success
-        // Small delay so onAuthStateChange can process SIGNED_IN event first.
-        setTimeout(() => navigate('/dashboard', { replace: true }), 800);
-        setState('success');
-        return;
-      }
-
+    function classifyError(error: any) {
       console.error('[paybridge] Email verification callback failed', error);
-
       if (isAlreadyUsedError(error)) {
         setState('already_verified');
         return;
       }
-
       if (isExpiredError(error)) {
         setState('expired');
+        return;
+      }
+      setState('invalid');
+    }
+
+    async function verify() {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const callbackError = {
+        error: searchParams.get('error') ?? hashParams.get('error'),
+        error_code: searchParams.get('error_code') ?? hashParams.get('error_code'),
+        error_description: searchParams.get('error_description') ?? hashParams.get('error_description'),
+      };
+
+      if (callbackError.error || callbackError.error_code || callbackError.error_description) {
+        classifyError(callbackError);
+        return;
+      }
+
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { error } = await (supabase.auth as any).setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!error) {
+          markSuccess();
+          return;
+        }
+        classifyError(error);
+        return;
+      }
+
+      if (code) {
+        const { error } = await (supabase.auth as any).exchangeCodeForSession(code);
+        if (!error) {
+          markSuccess();
+          return;
+        }
+        classifyError(error);
+        return;
+      }
+
+      if (tokenHash) {
+        const { error } = await (supabase.auth as any).verifyOtp({
+          token_hash: tokenHash,
+          type,
+        });
+        if (!error) {
+          markSuccess();
+          return;
+        }
+        classifyError(error);
+        return;
+      }
+
+      const { data } = await (supabase.auth as any).getSession();
+      if (data?.session) {
+        markSuccess();
         return;
       }
 
@@ -111,7 +154,7 @@ export function AuthCallback() {
     }
 
     verify();
-  }, [code, tokenHash, type, navigate]);
+  }, [code, tokenHash, type, navigate, searchParams]);
 
   async function handleResend() {
     if (!resendEmail || cooldown > 0 || resendLoading) return;

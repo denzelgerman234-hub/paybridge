@@ -191,7 +191,7 @@ export function AccountPage() {
     
     setUploadingAvatar(true);
     try {
-      const storagePath = `avatars/${profile!.id}/${Date.now()}-${file.name}`;
+      const storagePath = `${profile!.id}/${Date.now()}-${file.name}`;
       let publicUrl = URL.createObjectURL(file); // local preview fallback
       
       if (supabase.storage?.from) {

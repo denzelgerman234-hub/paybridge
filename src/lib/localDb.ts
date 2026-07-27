@@ -1158,6 +1158,14 @@ export const localDb = {
     return load().workers;
   },
 
+  updateWorkerAdminFields(workerId: string, fields: Partial<Pick<LocalWorkerSummary, 'badge' | 'account_health'>>) {
+    return mutate(state => {
+      const worker = state.workers.find(item => item.id === workerId);
+      if (!worker) throw new Error('Worker not found');
+      Object.assign(worker, fields);
+    });
+  },
+
   listGigApplications(status?: GigApplicationStatus | 'all') {
     const state = load();
     return state.gig_applications
@@ -1449,6 +1457,7 @@ export const localDb = {
     });
   },
 };
+
 
 
 

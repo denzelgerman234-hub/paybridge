@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { RiSearchLine, RiFileListLine, RiSendPlaneLine, RiTimeLine } from 'react-icons/ri';
+import { RiSearchLine, RiFileListLine } from 'react-icons/ri';
 import { useAuth } from '../../hooks/useAuth';
 import { useGigs, GigDetailRecord } from '../../hooks/useGigs';
 import { Card } from '../../components/ui/Card';
@@ -28,10 +28,12 @@ const NAVY8 = '#12203F';
 
 export function GigDetail() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { profile } = useAuth();
   const goBack = useSmartBack('/gigs/available');
   const { loading, gigs, applyToGig, confirmFunding, sendMessage, submitProof, getGigDetails } = useGigs(profile?.id);
   const [detail, setDetail] = useState<GigDetailRecord | null>(null);
+  const [mobileView, setMobileView] = useState<'details' | 'operations'>('details');
   const [applyNote, setApplyNote] = useState('');
   const [applying, setApplying] = useState(false);
   const [chatBody, setChatBody] = useState('');
@@ -45,6 +47,12 @@ export function GigDetail() {
     setDetail(getGigDetails(id));
   }, [id, gigs]);
 
+  useEffect(() => {
+    if (location.hash === '#operations') {
+      setMobileView('operations');
+    }
+  }, [location.hash]);
+
   if (loading) return <LoadingSpinner text="Loading gig details..." />;
   if (!detail) return (
     <div className="text-center py-20">
@@ -56,6 +64,7 @@ export function GigDetail() {
 
   const { gig, application, disbursements, thread, messages } = detail;
   const isAssigned = gig.worker_id === profile?.id;
+  const hasOperationsRoom = isAssigned && Boolean(thread);
   const canApply = gig.status === 'open' && !application;
   const canConfirmFunding = isAssigned && gig.funded && gig.funding_status === 'funded';
   const canSubmitProof = isAssigned && ['funding_confirmed', 'disbursement_in_progress', 'proof_rejected'].includes(gig.funding_status ?? 'unfunded');
@@ -124,13 +133,45 @@ export function GigDetail() {
     setSubmittingProof(false);
   }
 
+  function showMobileView(view: 'details' | 'operations') {
+    setMobileView(view);
+    if (view === 'operations') {
+      window.history.replaceState(null, '', `${location.pathname}${location.search}#operations`);
+    } else {
+      window.history.replaceState(null, '', `${location.pathname}${location.search}`);
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <button type="button" onClick={goBack} className="inline-flex items-center gap-1.5 text-sm text-cream/50 hover:text-cream transition-colors">
         <ArrowLeft size={16} /> Back to Gigs
       </button>
 
-      <Card padding="lg" id="overview" className="scroll-mt-24">
+      {hasOperationsRoom && (
+        <div className="grid grid-cols-2 gap-1 rounded border border-cream/10 bg-navy-900 p-1 sm:hidden">
+          <button
+            type="button"
+            onClick={() => showMobileView('details')}
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded px-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+              mobileView === 'details' ? 'bg-gold text-navy-950' : 'text-cream/60 hover:text-cream'
+            }`}
+          >
+            <RiFileListLine size={15} /> Details
+          </button>
+          <button
+            type="button"
+            onClick={() => showMobileView('operations')}
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded px-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+              mobileView === 'operations' ? 'bg-gold text-navy-950' : 'text-cream/60 hover:text-cream'
+            }`}
+          >
+            <MessageCircle size={15} /> Operations
+          </button>
+        </div>
+      )}
+
+      <Card padding="lg" id="overview" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-cream">{gig.client_name}</h1>
@@ -208,7 +249,7 @@ export function GigDetail() {
       </Card>
 
       {isAssigned && (
-        <Card padding="md" id="status" className="scroll-mt-24">
+        <Card padding="md" id="status" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
           <h2 className="font-bold text-cream mb-3">Transaction Status</h2>
           <ProgressBar value={verifiedCount} max={Math.max(disbursements.length, 1)} showPercent color="green" />
           <div className="grid grid-cols-3 gap-3 mt-3 text-xs">
@@ -221,7 +262,7 @@ export function GigDetail() {
       )}
 
       {isAssigned && thread && (
-        <Card padding="md" id="operations" className="scroll-mt-24">
+        <Card padding="md" id="operations" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'details' ? 'hidden sm:block' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-cream flex items-center gap-2"><MessageCircle size={16} /> Operations Room</h2>
             <span className="text-xs" style={{ color: DIM }}>{thread.specialist_name}, Operations Specialist</span>
@@ -249,7 +290,7 @@ export function GigDetail() {
         </Card>
       )}
 
-      <Card padding="md" id="beneficiaries" className="scroll-mt-24">
+      <Card padding="md" id="beneficiaries" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-cream">Beneficiaries <span className="text-cream/50 font-normal text-sm">({disbursements.length}/{gig.recipient_count})</span></h2>
         </div>

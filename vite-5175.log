@@ -1,45 +1,25 @@
-
+﻿
 > paybridge-workers@1.0.0 dev
 > vite --host 127.0.0.1 --port 5175
 
-
-  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m919[22m[2m[0m ms[22m
-
-  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5175[22m/[39m
-[2m5:45:36 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/SupportPage.tsx, /src/pages/AccountPage.tsx, /src/pages/admin/AdminCommissions.tsx, /src/pages/admin/AdminGigs.tsx, /src/pages/admin/AdminOperations.tsx, /src/pages/onboarding/Bank.tsx, /src/pages/admin/AdminOverview.tsx, /src/pages/admin/AdminCompliance.tsx, /src/pages/admin/AdminInbox.tsx, /src/pages/WalletPage.tsx, /src/pages/dashboard/DashboardPage.tsx, /src/pages/ActivityPage.tsx, /src/pages/admin/AdminDisbursements.tsx, /src/components/account/BankAccountsManager.tsx, /src/components/layout/AdminLayout.tsx, /src/pages/gigs/GigListAvailable.tsx, /src/pages/gigs/GigDetail.tsx, /src/pages/gigs/GigListActive.tsx, /src/components/layout/Navbar.tsx[22m
-[2m5:46:35 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/account/BankAccountsManager.tsx, /src/index.css[22m
-[2m5:47:35 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/account/BankAccountsManager.tsx, /src/index.css[22m
-[2m5:47:42 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/onboarding/Bank.tsx, /src/index.css[22m
-[2m5:48:00 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/ApplyPage.tsx, /src/index.css[22m
-[2m5:48:12 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/ApplyPage.tsx, /src/index.css[22m
-[2m5:57:45 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/main.tsx[22m
-[2m6:05:27 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigListActive.tsx, /src/index.css[22m
-[2m6:05:31 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigListAvailable.tsx, /src/index.css[22m
-[2m6:05:37 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigDetail.tsx, /src/index.css[22m
-[2m6:05:53 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ui/Card.tsx, /src/index.css[22m
-[2m6:05:59 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigDetail.tsx, /src/index.css[22m
-[2m6:06:25 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dashboard/DashboardPage.tsx, /src/index.css[22m
-[2m6:06:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/gigs/GigCard.tsx[22m
-[2m6:39:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/PublicLayout.tsx, /src/index.css[22m
-[2m6:39:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigDetail.tsx, /src/index.css[22m
-[2m6:41:37 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/pages/auth/ForgotPassword.tsx[22m
-[2m6:41:37 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/ApplyPage.tsx, /src/index.css[22m
-[2m6:41:37 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/AuthLayout.tsx, /src/index.css[22m
-[2m6:42:33 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/AuthLayout.tsx, /src/index.css[22m
-[2m7:11:49 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigListAvailable.tsx, /src/index.css[22m
-[2m7:11:49 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
-[2m7:11:49 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Navbar.tsx, /src/index.css[22m
-[2m7:11:49 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigListActive.tsx, /src/index.css[22m
-[2m7:12:36 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
-[2m7:16:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/gigs/GigListAvailable.tsx, /src/index.css[22m
-[2m7:16:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dashboard/DashboardPage.tsx, /src/index.css[22m
-[2m7:16:41 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/gigs/GigCard.tsx[22m
-[2m7:28:09 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/Navbar.tsx, /src/index.css[22m
-[2m7:28:09 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminCommissions.tsx, /src/index.css[22m
-[2m7:28:09 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/AdminLayout.tsx, /src/index.css[22m
-[2m7:28:09 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminCompliance.tsx, /src/index.css[22m
-[2m7:28:10 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminOverview.tsx, /src/index.css[22m
-[2m7:28:25 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/AdminLayout.tsx, /src/index.css[22m
-[2m7:33:03 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css[22m
-[2m7:33:03 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/layout/AdminLayout.tsx, /src/index.css[22m
-[2m7:33:10 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css[22m
+npm.cmd : [31mfailed to load config from C:\Users\Solomon\paybridge-workers\vite.config.ts[39m
+    + CategoryInfo          : NotSpecified: ([31mfailed to ....config.ts[39m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[31merror when starting dev server:
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:421:11)
+    at Object.spawn (node:child_process:796:9)
+    at ensureServiceIsRunning (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1975:29)
+    at build (C:\Users\Solomon\paybridge-workers\node_modules\esbuild\lib\main.js:1873:26)
+    at bundleConfigFile 
+(file:///C:/Users/Solomon/paybridge-workers/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:66845:24)
+    at loadConfigFromFile 
+(file:///C:/Users/Solomon/paybridge-workers/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:66815:27)
+    at resolveConfig 
+(file:///C:/Users/Solomon/paybridge-workers/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:66416:30)
+    at _createServer 
+(file:///C:/Users/Solomon/paybridge-workers/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:63015:24)
+    at createServer 
+(file:///C:/Users/Solomon/paybridge-workers/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:63012:10)
+    at CAC.<anonymous> (file:///C:/Users/Solomon/paybridge-workers/node_modules/vite/dist/node/cli.js:736:26)[39m

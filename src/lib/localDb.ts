@@ -36,6 +36,11 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 3600 * 1000).toISO
 const daysAhead = (n: number) => new Date(Date.now() + n * 24 * 3600 * 1000).toISOString();
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
+type CreateGigBeneficiary = Pick<WorkerDisbursement, 'recipient_name' | 'amount' | 'method' | 'destination'>;
+type CreateGigInput = Omit<WorkerGig, 'id' | 'worker_id' | 'commission_amount' | 'status' | 'accepted_at' | 'funded_at' | 'completed_at' | 'funded' | 'funding_status' | 'operations_specialist' | 'created_at' | 'updated_at'> & {
+  beneficiaries?: CreateGigBeneficiary[];
+};
+
 export interface LocalWorkerSummary {
   id: string;
   full_name: string;
@@ -1115,7 +1120,7 @@ export const localDb = {
     return {
       gig,
       application: workerId ? state.gig_applications.find(a => a.gig_id === gig.id && a.worker_id === workerId) ?? null : null,
-      disbursements: state.worker_disbursements.filter(d => d.gig_id === gig.id),
+      disbursements: state.worker_disbursements.filter(d => d.gig_id === gig.id && (!workerId || ['funding_confirmed', 'disbursement_in_progress', 'proof_rejected', 'awaiting_verification', 'verified_complete', 'settled'].includes(gig.funding_status ?? 'unfunded'))),
       thread,
       messages: thread ? state.operation_messages.filter(m => m.thread_id === thread.id).sort((a, b) => a.created_at.localeCompare(b.created_at)) : [],
     };
@@ -1188,6 +1193,9 @@ export const localDb = {
 
       if (status === 'accepted') {
         gig.worker_id = application.worker_id;
+        state.worker_disbursements.forEach(item => {
+          if (item.gig_id === gig.id) item.worker_id = application.worker_id;
+        });
         gig.status = 'accepted';
         gig.accepted_at = now();
         gig.operations_specialist = specialistName;
@@ -1218,10 +1226,11 @@ export const localDb = {
     });
   },
 
-  createGig(input: Omit<WorkerGig, 'id' | 'worker_id' | 'commission_amount' | 'status' | 'accepted_at' | 'funded_at' | 'completed_at' | 'funded' | 'funding_status' | 'operations_specialist' | 'created_at' | 'updated_at'>) {
+  createGig(input: CreateGigInput) {
     return mutate(state => {
+      const { beneficiaries = [], ...gigInput } = input;
       const gig: WorkerGig = {
-        ...input,
+        ...gigInput,
         id: id('gig'),
         worker_id: null,
         commission_amount: input.total_principal * (input.commission_rate / 100),
@@ -1236,6 +1245,25 @@ export const localDb = {
         updated_at: now(),
       };
       state.gigs.unshift(gig);
+      beneficiaries.slice(0, 5).forEach(beneficiary => {
+        state.worker_disbursements.push({
+          id: id('disb'),
+          gig_id: gig.id,
+          worker_id: '',
+          recipient_name: beneficiary.recipient_name,
+          amount: beneficiary.amount,
+          method: beneficiary.method,
+          destination: beneficiary.destination,
+          status: 'pending',
+          transaction_id: null,
+          proof_url: null,
+          proof_file_name: null,
+          notes: null,
+          sent_at: null,
+          verified_at: null,
+          created_at: now(),
+        });
+      });
       addAudit(state, {
         event_type: 'gig_created',
         entity_type: 'worker_gig',
@@ -1457,6 +1485,8 @@ export const localDb = {
     });
   },
 };
+
+
 
 
 

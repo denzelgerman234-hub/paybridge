@@ -1,17 +1,24 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RiAddLine, RiSearchLine, RiMoneyDollarCircleLine, RiUserAddLine, RiCloseLine, RiCheckLine } from 'react-icons/ri';
 import { localDb } from '../../lib/localDb';
-import { WorkerGig } from '../../types/database';
+import { WorkerDisbursement, WorkerGig } from '../../types/database';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
-import { DISBURSEMENT_METHODS, PARTNER_BANKS } from '../../lib/constants';
+import { DISBURSEMENT_METHODS } from '../../lib/constants';
 
 const EMPTY_GIG: Partial<WorkerGig> = {
   client_name: '', client_contact: '', total_principal: 0, commission_rate: 10,
   recipient_count: 0, disbursement_methods: [], badge_required: null,
   deadline: '', notes: '', funded: false,
 };
+
+const MAX_BENEFICIARIES = 5;
+type BeneficiaryForm = Pick<WorkerDisbursement, 'recipient_name' | 'amount' | 'method' | 'destination'>;
+
+function emptyBeneficiary(): BeneficiaryForm {
+  return { recipient_name: '', amount: 0, method: 'bank_transfer', destination: '' };
+}
 
 export function AdminGigs() {
   const [gigs, setGigs]         = useState(localDb.listGigs());
@@ -23,6 +30,7 @@ export function AdminGigs() {
   const [showFund, setShowFund]     = useState<WorkerGig | null>(null);
   const [showAssign, setShowAssign] = useState<WorkerGig | null>(null);
   const [form, setForm]         = useState({ ...EMPTY_GIG, methods: [] as string[] });
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryForm[]>([]);
   const [fundRef, setFundRef]   = useState('');
   const [assignId, setAssignId] = useState('');
 
@@ -44,24 +52,32 @@ export function AdminGigs() {
   const pendingApplications = applications.filter(app => app.status === 'submitted' || app.status === 'under_review');
 
   const commissionAmt = (form.total_principal || 0) * ((form.commission_rate || 10) / 100);
+  const cleanBeneficiaries = beneficiaries
+    .map(item => ({ ...item, recipient_name: item.recipient_name.trim(), destination: item.destination.trim(), amount: Number(item.amount) || 0 }))
+    .filter(item => item.recipient_name || item.destination || item.amount > 0);
 
   function createGig() {
     if (!form.client_name || !form.total_principal || !form.deadline) {
       toast.error('Fill in required fields'); return;
+    }
+    if (cleanBeneficiaries.some(item => !item.recipient_name || !item.destination || !item.amount)) {
+      toast.error('Complete each beneficiary or remove the blank rows'); return;
     }
     localDb.createGig({
       client_name: form.client_name!,
       client_contact: form.client_contact || null,
       total_principal: Number(form.total_principal),
       commission_rate: Number(form.commission_rate) || 10,
-      recipient_count: Number(form.recipient_count) || 1,
+      recipient_count: Math.min(MAX_BENEFICIARIES, Math.max(Number(form.recipient_count) || cleanBeneficiaries.length || 1, cleanBeneficiaries.length)),
       disbursement_methods: form.methods,
       badge_required: (form.badge_required as any) || null,
       deadline: new Date(form.deadline!).toISOString(),
       notes: form.notes || null,
+      beneficiaries: cleanBeneficiaries,
     });
     refresh();
     setForm({ ...EMPTY_GIG, methods: [] });
+    setBeneficiaries([]);
     setShowCreate(false);
     toast.success('Gig created');
   }
@@ -86,6 +102,18 @@ export function AdminGigs() {
 
   function toggleMethod(m: string) {
     setForm(p => ({ ...p, methods: p.methods.includes(m) ? p.methods.filter(x => x !== m) : [...p.methods, m] }));
+  }
+
+  function addBeneficiary() {
+    setBeneficiaries(prev => prev.length >= MAX_BENEFICIARIES ? prev : [...prev, emptyBeneficiary()]);
+  }
+
+  function updateBeneficiary(index: number, fields: Partial<BeneficiaryForm>) {
+    setBeneficiaries(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, ...fields } : item));
+  }
+
+  function removeBeneficiary(index: number) {
+    setBeneficiaries(prev => prev.filter((_, itemIndex) => itemIndex !== index));
   }
 
   const statuses = ['all', 'open', 'accepted', 'funded', 'in_progress', 'completed', 'cancelled'];
@@ -242,7 +270,7 @@ export function AdminGigs() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-cream/50 uppercase tracking-wide">Recipients *</label>
-                  <input className="input-dark" type="number" value={form.recipient_count||''} onChange={e=>setForm(p=>({...p,recipient_count:+e.target.value}))} placeholder="5" />
+                  <input className="input-dark" type="number" min={1} max={MAX_BENEFICIARIES} value={form.recipient_count||''} onChange={e=>setForm(p=>({...p,recipient_count:Math.min(MAX_BENEFICIARIES, Math.max(1, +e.target.value || 1))}))} placeholder="5" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-cream/50 uppercase tracking-wide">Deadline *</label>
@@ -271,6 +299,42 @@ export function AdminGigs() {
                     </label>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-3 rounded border border-white/8 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-cream/50 uppercase tracking-wide">Beneficiaries</label>
+                    <p className="text-xs text-cream/45 mt-0.5">Hidden from the worker until funding is confirmed.</p>
+                  </div>
+                  <button type="button" className="px-3 py-1.5 rounded text-xs font-bold border border-gold/30 text-gold hover:bg-gold/10 disabled:opacity-40" onClick={addBeneficiary} disabled={beneficiaries.length >= MAX_BENEFICIARIES}>
+                    Add ({beneficiaries.length}/{MAX_BENEFICIARIES})
+                  </button>
+                </div>
+                {beneficiaries.length > 0 && (
+                  <div className="space-y-3">
+                    {beneficiaries.map((beneficiary, index) => (
+                      <div key={index} className="rounded border border-white/8 p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-bold text-cream">Beneficiary {index + 1}</p>
+                          <button type="button" className="text-cream/45 hover:text-cream" onClick={() => removeBeneficiary(index)} aria-label="Remove beneficiary">
+                            <RiCloseLine size={15} />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input className="input-dark" value={beneficiary.recipient_name} onChange={e => updateBeneficiary(index, { recipient_name: e.target.value })} placeholder="Recipient name" />
+                          <input className="input-dark" type="number" min={0} value={beneficiary.amount || ''} onChange={e => updateBeneficiary(index, { amount: +e.target.value })} placeholder="Amount" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-2">
+                          <select className="input-dark appearance-none" value={beneficiary.method} onChange={e => updateBeneficiary(index, { method: e.target.value })}>
+                            {DISBURSEMENT_METHODS.map(method => <option key={method.id} value={method.id} className="bg-[#1e1c35]">{method.label}</option>)}
+                          </select>
+                          <input className="input-dark" value={beneficiary.destination} onChange={e => updateBeneficiary(index, { destination: e.target.value })} placeholder="Destination / account / handle" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -334,6 +398,8 @@ export function AdminGigs() {
     </div>
   );
 }
+
+
 
 
 

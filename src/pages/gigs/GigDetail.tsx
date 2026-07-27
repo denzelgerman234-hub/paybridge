@@ -150,7 +150,7 @@ export function GigDetail() {
       </button>
 
       {canUseOperationsView && (
-        <div className="sticky top-14 z-20 -mx-5 mb-4 px-5 py-2 backdrop-blur sm:hidden border-b border-cream/5" style={{ background: 'rgba(11,19,47,0.95)' }}>
+        <div className="sticky top-14 z-20 -mx-5 mb-4 px-5 py-2 backdrop-blur border-b border-cream/5" style={{ background: 'rgba(11,19,47,0.95)' }}>
           <div className="grid grid-cols-2 gap-1 rounded bg-[#12203F] p-1 shadow-lg">
             <button
               type="button"
@@ -174,7 +174,7 @@ export function GigDetail() {
         </div>
       )}
 
-      <Card padding="lg" id="overview" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
+      <Card padding="lg" id="overview" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'operations' ? 'hidden' : ''}`}>
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-cream">{gig.client_name}</h1>
@@ -252,7 +252,7 @@ export function GigDetail() {
       </Card>
 
       {isAssigned && (
-        <Card padding="md" id="status" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
+        <Card padding="md" id="status" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'operations' ? 'hidden' : ''}`}>
           <h2 className="font-bold text-cream mb-3">Transaction Status</h2>
           <ProgressBar value={verifiedCount} max={Math.max(disbursements.length, 1)} showPercent color="green" />
           <div className="grid grid-cols-3 gap-3 mt-3 text-xs">
@@ -265,7 +265,7 @@ export function GigDetail() {
       )}
 
       {isAssigned && (
-        <Card padding="md" id="operations" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'details' ? 'hidden sm:block' : ''}`}>
+        <Card padding="md" id="operations" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'details' ? 'hidden' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-cream flex items-center gap-2"><MessageCircle size={16} /> Operations Room</h2>
             <span className="text-xs" style={{ color: DIM }}>{thread?.specialist_name ?? gig.operations_specialist ?? 'Operations'}</span>
@@ -299,7 +299,7 @@ export function GigDetail() {
         </Card>
       )}
 
-      <Card padding="md" id="beneficiaries" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
+      <Card padding="md" id="beneficiaries" className={`scroll-mt-28 ${canUseOperationsView && mobileView === 'operations' ? 'hidden' : ''}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-cream">Beneficiaries <span className="text-cream/50 font-normal text-sm">({disbursements.length}/{gig.recipient_count})</span></h2>
         </div>

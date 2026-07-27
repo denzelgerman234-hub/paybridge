@@ -1072,15 +1072,28 @@ export const localDb = {
   },
 
   getGig(gigId: string, workerId?: string) {
-    const state = load();
-    const gig = state.gigs.find(g => g.id === gigId) ?? null;
+    let state = load();
+    let gig = state.gigs.find(g => g.id === gigId) ?? null;
     if (!gig) return null;
+
+    if (workerId && gig.worker_id === workerId && !state.operation_threads.some(t => t.gig_id === gigId && t.worker_id === workerId)) {
+      state = mutate(nextState => {
+        const assignedGig = nextState.gigs.find(g => g.id === gigId && g.worker_id === workerId);
+        if (assignedGig) {
+          ensureThread(nextState, assignedGig, workerId, assignedGig.operations_specialist ?? 'Jordan Lee');
+        }
+      });
+      gig = state.gigs.find(g => g.id === gigId) ?? gig;
+    }
+
+    const thread = workerId ? state.operation_threads.find(t => t.gig_id === gig.id && t.worker_id === workerId) ?? null : null;
+
     return {
       gig,
       application: workerId ? state.gig_applications.find(a => a.gig_id === gig.id && a.worker_id === workerId) ?? null : null,
       disbursements: state.worker_disbursements.filter(d => d.gig_id === gig.id),
-      thread: workerId ? state.operation_threads.find(t => t.gig_id === gig.id && t.worker_id === workerId) ?? null : null,
-      messages: state.operation_messages.filter(m => state.operation_threads.some(t => t.id === m.thread_id && t.gig_id === gig.id)).sort((a, b) => a.created_at.localeCompare(b.created_at)),
+      thread,
+      messages: thread ? state.operation_messages.filter(m => m.thread_id === thread.id).sort((a, b) => a.created_at.localeCompare(b.created_at)) : [],
     };
   },
 

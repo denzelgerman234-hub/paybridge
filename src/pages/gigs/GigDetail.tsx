@@ -64,7 +64,7 @@ export function GigDetail() {
 
   const { gig, application, disbursements, thread, messages } = detail;
   const isAssigned = gig.worker_id === profile?.id;
-  const hasOperationsRoom = isAssigned && Boolean(thread);
+  const canUseOperationsView = isAssigned;
   const canApply = gig.status === 'open' && !application;
   const canConfirmFunding = isAssigned && gig.funded && gig.funding_status === 'funded';
   const canSubmitProof = isAssigned && ['funding_confirmed', 'disbursement_in_progress', 'proof_rejected'].includes(gig.funding_status ?? 'unfunded');
@@ -148,8 +148,8 @@ export function GigDetail() {
         <ArrowLeft size={16} /> Back to Gigs
       </button>
 
-      {hasOperationsRoom && (
-        <div className="grid grid-cols-2 gap-1 rounded border border-cream/10 bg-navy-900 p-1 sm:hidden">
+      {canUseOperationsView && (
+        <div className="sticky top-20 z-20 grid grid-cols-2 gap-1 rounded border border-cream/10 bg-navy-900/95 p-1 shadow-lg backdrop-blur sm:hidden">
           <button
             type="button"
             onClick={() => showMobileView('details')}
@@ -171,7 +171,7 @@ export function GigDetail() {
         </div>
       )}
 
-      <Card padding="lg" id="overview" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
+      <Card padding="lg" id="overview" className={`scroll-mt-24 ${canUseOperationsView && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-cream">{gig.client_name}</h1>
@@ -249,7 +249,7 @@ export function GigDetail() {
       </Card>
 
       {isAssigned && (
-        <Card padding="md" id="status" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
+        <Card padding="md" id="status" className={`scroll-mt-24 ${canUseOperationsView && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
           <h2 className="font-bold text-cream mb-3">Transaction Status</h2>
           <ProgressBar value={verifiedCount} max={Math.max(disbursements.length, 1)} showPercent color="green" />
           <div className="grid grid-cols-3 gap-3 mt-3 text-xs">
@@ -261,23 +261,29 @@ export function GigDetail() {
         </Card>
       )}
 
-      {isAssigned && thread && (
-        <Card padding="md" id="operations" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'details' ? 'hidden sm:block' : ''}`}>
+      {isAssigned && (
+        <Card padding="md" id="operations" className={`scroll-mt-24 ${canUseOperationsView && mobileView === 'details' ? 'hidden sm:block' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-cream flex items-center gap-2"><MessageCircle size={16} /> Operations Room</h2>
-            <span className="text-xs" style={{ color: DIM }}>{thread.specialist_name}, Operations Specialist</span>
+            <span className="text-xs" style={{ color: DIM }}>{thread?.specialist_name ?? gig.operations_specialist ?? 'Operations'}</span>
           </div>
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {messages.map(message => (
-              <div key={message.id} className="p-3 rounded" style={{ background: message.sender_role === 'worker' ? 'rgba(201,168,76,0.08)' : NAVY8, border: `1px solid ${BORDER}` }}>
-                <div className="flex justify-between gap-3 mb-1">
-                  <p className="text-xs font-bold" style={{ color: message.sender_role === 'worker' ? GOLD : SAGE }}>{message.sender_name}</p>
-                  <p className="text-xs" style={{ color: DIM }}>{formatDate(message.created_at)}</p>
+          {thread ? (
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {messages.map(message => (
+                <div key={message.id} className="p-3 rounded" style={{ background: message.sender_role === 'worker' ? 'rgba(201,168,76,0.08)' : NAVY8, border: `1px solid ${BORDER}` }}>
+                  <div className="flex justify-between gap-3 mb-1">
+                    <p className="text-xs font-bold" style={{ color: message.sender_role === 'worker' ? GOLD : SAGE }}>{message.sender_name}</p>
+                    <p className="text-xs" style={{ color: DIM }}>{formatDate(message.created_at)}</p>
+                  </div>
+                  <p className="text-sm" style={{ color: CREAM }}>{message.body}</p>
                 </div>
-                <p className="text-sm" style={{ color: CREAM }}>{message.body}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded border border-cream/10 bg-[#12203F] p-4 text-sm text-cream/55">
+              Operations has not opened this room yet. Messages will appear here as soon as the gig is assigned for active coordination.
+            </div>
+          )}
           <div className="mt-3">
             <MessageInputBar
               value={chatBody}
@@ -290,7 +296,7 @@ export function GigDetail() {
         </Card>
       )}
 
-      <Card padding="md" id="beneficiaries" className={`scroll-mt-24 ${hasOperationsRoom && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
+      <Card padding="md" id="beneficiaries" className={`scroll-mt-24 ${canUseOperationsView && mobileView === 'operations' ? 'hidden sm:block' : ''}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-cream">Beneficiaries <span className="text-cream/50 font-normal text-sm">({disbursements.length}/{gig.recipient_count})</span></h2>
         </div>

@@ -142,12 +142,9 @@ export function AdminLogin() {
               ) : 'Sign In to Admin'}
             </button>
           </form>
-
-          <p className="mt-5 text-center text-[11px] leading-relaxed" style={{ color: DIM }}>
-            Use a Supabase Auth account with admin app metadata enabled.
-          </p>
         </div>
       </div>
     </div>
   );
 }
+

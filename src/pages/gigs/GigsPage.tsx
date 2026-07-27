@@ -25,7 +25,7 @@ export function GigsPage({ tab }: GigsPageProps) {
   if (loading) return <LoadingSpinner text="Loading gigs..." />;
 
   const availableCount = gigs.filter(gig => gig.status === 'open').length;
-  const activeCount = gigs.filter(gig => ['accepted', 'funded', 'in_progress'].includes(gig.status)).length;
+  const activeCount = gigs.filter(gig => gig.worker_id === profile?.id && ['accepted', 'funded', 'in_progress'].includes(gig.status)).length;
 
   const tabs = [
     {

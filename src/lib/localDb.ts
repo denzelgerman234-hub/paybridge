@@ -474,6 +474,30 @@ export const localDb = {
 
   ensureWorker(profile: WorkerProfile, email?: string | null) {
     return mutate(state => {
+      // Re-assign mock data if this is the first real user to log in
+      if (profile.id !== MOCK_USER_ID) {
+        const hasMockData = state.workers.some(w => w.id === MOCK_USER_ID);
+        if (hasMockData) {
+          state.workers = state.workers.filter(w => w.id !== MOCK_USER_ID);
+          state.gigs.forEach(g => { if (g.worker_id === MOCK_USER_ID) g.worker_id = profile.id; });
+          state.gig_applications.forEach(a => { if (a.worker_id === MOCK_USER_ID) a.worker_id = profile.id; });
+          state.worker_disbursements.forEach(d => { if (d.worker_id === MOCK_USER_ID) d.worker_id = profile.id; });
+          state.operation_threads.forEach(t => { if (t.worker_id === MOCK_USER_ID) t.worker_id = profile.id; });
+          state.notifications.forEach(n => { if (n.worker_id === MOCK_USER_ID) n.worker_id = profile.id; });
+          state.notification_preferences.forEach(p => { if (p.worker_id === MOCK_USER_ID) p.worker_id = profile.id; });
+          state.audit_events.forEach(e => { if (e.worker_id === MOCK_USER_ID) e.worker_id = profile.id; });
+          state.commission_ledger.forEach(c => { if (c.worker_id === MOCK_USER_ID) c.worker_id = profile.id; });
+          state.funding_events.forEach(f => { if (f.worker_id === MOCK_USER_ID) f.worker_id = profile.id; });
+          state.storage_objects.forEach(s => { if (s.owner_id === MOCK_USER_ID) s.owner_id = profile.id; });
+          state.kyc_submissions.forEach(k => { if (k.worker_id === MOCK_USER_ID) k.worker_id = profile.id; });
+          state.bank_accounts.forEach(b => { if (b.worker_id === MOCK_USER_ID) b.worker_id = profile.id; });
+          state.security_settings.forEach(s => { if (s.worker_id === MOCK_USER_ID) s.worker_id = profile.id; });
+          state.signed_documents.forEach(d => { if (d.worker_id === MOCK_USER_ID) d.worker_id = profile.id; });
+          state.support_tickets.forEach(t => { if (t.worker_id === MOCK_USER_ID) t.worker_id = profile.id; });
+          state.support_chat_threads.forEach(t => { if (t.worker_id === MOCK_USER_ID) t.worker_id = profile.id; });
+        }
+      }
+
       const existing = state.workers.find(worker => worker.id === profile.id);
       const worker: LocalWorkerSummary = {
         id: profile.id,

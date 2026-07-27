@@ -20,7 +20,7 @@ export function GigListActive({ showHeader = true }: GigListActiveProps) {
   const { gigs, loading } = useGigs(profile?.id);
   if (loading) return <LoadingSpinner text="Loading active gigs..." />;
 
-  const active = gigs.filter(g => ['accepted', 'funded', 'in_progress'].includes(g.status));
+  const active = gigs.filter(g => g.worker_id === profile?.id && ['accepted', 'funded', 'in_progress'].includes(g.status));
 
   return (
     <div className="space-y-5 animate-fade-in">

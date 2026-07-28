@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { RiAlertLine, RiFlagLine, RiFileTextLine, RiCheckboxCircleLine, RiCloseLine } from 'react-icons/ri';
 import { MOCK_ALL_WORKERS } from '../../lib/adminMockData';
-import { localDb } from '../../lib/localDb';
+import { AdminKycReviewSubmission, listAdminKycSubmissions, reviewAdminKycSubmission } from '../../lib/adminComplianceData';
 import { formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 
 type IncidentStatus = 'open' | 'investigating' | 'resolved';
 
-type KycReviewSubmission = ReturnType<typeof localDb.listKycSubmissions>[number];
+type KycReviewSubmission = AdminKycReviewSubmission;
 
 interface ComplianceIncident {
   id: string;
@@ -49,12 +49,25 @@ const AUDIT_LOG = [
 
 export function AdminCompliance() {
   const [incidents, setIncidents] = useState(INCIDENTS);
-  const [kycSubmissions, setKycSubmissions] = useState<KycReviewSubmission[]>(() => localDb.listKycSubmissions('all'));
+  const [kycSubmissions, setKycSubmissions] = useState<KycReviewSubmission[]>([]);
+  const [loadingKyc, setLoadingKyc] = useState(true);
+  const [reviewingKycId, setReviewingKycId] = useState<string | null>(null);
   const [selected, setSelected]   = useState<ComplianceIncident | null>(null);
 
-  useEffect(() => localDb.subscribe(() => {
-    setKycSubmissions(localDb.listKycSubmissions('all'));
-  }), []);
+  async function refreshKycSubmissions() {
+    setLoadingKyc(true);
+    try {
+      setKycSubmissions(await listAdminKycSubmissions());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not load KYC submissions');
+    } finally {
+      setLoadingKyc(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshKycSubmissions();
+  }, []);
 
   function resolve(id: string) {
     setIncidents(prev => prev.map(i => i.id === id ? { ...i, status: 'resolved', resolved_at: new Date().toISOString() } : i));
@@ -62,15 +75,23 @@ export function AdminCompliance() {
     setSelected(null);
   }
 
-  function reviewKyc(id: string, status: 'in_review' | 'verified' | 'rejected') {
+  async function reviewKyc(id: string, status: 'in_review' | 'verified' | 'rejected') {
     const note = status === 'verified'
       ? 'Approved after manual Operations review.'
       : status === 'rejected'
         ? 'Needs updated ID or tax information before approval.'
         : 'Operations started manual identity review.';
-    localDb.reviewKycSubmission(id, status, note, 'admin-001');
-    setKycSubmissions(localDb.listKycSubmissions('all'));
-    toast.success(status === 'verified' ? 'KYC approved' : status === 'rejected' ? 'KYC marked for update' : 'KYC marked in review');
+
+    setReviewingKycId(id);
+    try {
+      await reviewAdminKycSubmission(id, status, note);
+      await refreshKycSubmissions();
+      toast.success(status === 'verified' ? 'KYC approved' : status === 'rejected' ? 'KYC marked for update' : 'KYC marked in review');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update KYC review');
+    } finally {
+      setReviewingKycId(null);
+    }
   }
 
   const open         = incidents.filter(i => i.status !== 'resolved').length;
@@ -130,7 +151,9 @@ export function AdminCompliance() {
           </div>
           <span className={pendingKyc.length > 0 ? 'status-pending' : 'status-verified'}>{pendingKyc.length} pending</span>
         </div>
-        {kycSubmissions.length === 0 ? (
+        {loadingKyc ? (
+          <div className="p-5 text-sm text-cream/50">Loading KYC submissions...</div>
+        ) : kycSubmissions.length === 0 ? (
           <div className="p-5 text-sm text-cream/50">No KYC submissions yet.</div>
         ) : (
           <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
@@ -145,27 +168,27 @@ export function AdminCompliance() {
                       <span className="text-xs text-cream/50">{formatDate(submission.submitted_at)}</span>
                     </div>
                     <p className="font-semibold text-cream text-sm">{submission.worker?.full_name ?? 'Unknown worker'}</p>
-                    <p className="text-xs text-cream/50">{submission.worker?.email ?? submission.worker_id}</p>
+                    <p className="text-xs text-cream/50">{submission.worker ? `${submission.worker.phone || 'No phone'} - ${submission.worker.country || 'No country'}` : submission.worker_id}</p>
                     <div className="mt-3 grid gap-2 text-xs text-cream/50 sm:grid-cols-3">
                       <p><span className="text-cream/35">ID:</span> {submission.id_document_type.replace('_', ' ')}</p>
-                      <p><span className="text-cream/35">File:</span> {submission.id_document_file_name}</p>
+                      <p><span className="text-cream/35">File:</span> {submission.document_signed_url ? <a href={submission.document_signed_url} target="_blank" rel="noreferrer" className="text-gold hover:text-gold-light">{submission.id_document_file_name}</a> : submission.id_document_file_name}</p>
                       <p><span className="text-cream/35">Tax:</span> {submission.tax_id_type.toUpperCase()} ending {submission.tax_id_last4}</p>
                     </div>
                     {submission.review_note && <p className="mt-2 text-xs text-cream/40">{submission.review_note}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2 lg:justify-end">
                     {(submission.status === 'submitted' || submission.status === 'rejected') && (
-                      <button onClick={() => reviewKyc(submission.id, 'in_review')} className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-gold/30 text-gold hover:bg-gold/10 transition-colors">
+                      <button disabled={reviewingKycId === submission.id} onClick={() => reviewKyc(submission.id, 'in_review')} className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-gold/30 text-gold hover:bg-gold/10 disabled:opacity-50 transition-colors">
                         Reviewing
                       </button>
                     )}
                     {submission.status !== 'verified' && (
-                      <button onClick={() => reviewKyc(submission.id, 'verified')} className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-emerald-500/30 text-sage hover:bg-sage-500/10 transition-colors">
+                      <button disabled={reviewingKycId === submission.id} onClick={() => reviewKyc(submission.id, 'verified')} className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-emerald-500/30 text-sage hover:bg-sage-500/10 disabled:opacity-50 transition-colors">
                         Approve
                       </button>
                     )}
                     {submission.status !== 'rejected' && (
-                      <button onClick={() => reviewKyc(submission.id, 'rejected')} className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors">
+                      <button disabled={reviewingKycId === submission.id} onClick={() => reviewKyc(submission.id, 'rejected')} className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors">
                         Needs Update
                       </button>
                     )}
@@ -281,3 +304,6 @@ export function AdminCompliance() {
     </div>
   );
 }
+
+
+

@@ -51,9 +51,9 @@ export function HowItWorks() {
         <p style={{ color: DIM, fontSize: 15 }}>A transparent, pre-funded process designed to protect you.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        <div className="hidden lg:flex justify-center relative">
-          <img src="/images/network.png" alt="Secure Network Flow" className="w-full max-w-lg hover:scale-105 transition-transform duration-500 drop-shadow-2xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+        <div className="flex justify-center relative">
+          <img src="/images/network.png" alt="Secure Network Flow" className="w-full max-w-[20rem] sm:max-w-sm lg:max-w-lg hover:scale-105 transition-transform duration-500 drop-shadow-2xl" />
         </div>
         <div className="relative">
         {/* Gold vertical connector — desktop only */}
@@ -107,4 +107,5 @@ export function HowItWorks() {
     </section>
   );
 }
+
 

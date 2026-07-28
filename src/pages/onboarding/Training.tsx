@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { completeTrainingModules } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { TRAINING_MODULES, ONBOARDING_STEPS } from '../../lib/constants';
 import { ProgressBar } from '../../components/ui/ProgressBar';
@@ -14,7 +14,7 @@ const GOLD  = '#C9A84C';
 const SAGE  = '#7DC99A';
 
 export function OnboardingTraining() {
-  const { profile } = useAppStore();
+  const { profile, updateOnboardingStep } = useAppStore();
   const navigate    = useNavigate();
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [playing, setPlaying]     = useState<string | null>(null);
@@ -29,12 +29,13 @@ export function OnboardingTraining() {
 
   async function handleComplete() {
     setLoading(true);
-    await supabase.from('training_progress').insert(
-      Array.from(completed).map(m => ({ worker_id: profile!.id, module_id: m, completed: true, completed_at: new Date().toISOString() }))
-    );
-    await supabase.from('worker_profiles').update({ onboarding_step: 'quiz' }).eq('id', profile!.id);
-    setLoading(false);
-    navigate('/onboarding/quiz');
+    try {
+      await completeTrainingModules(profile!.id, Array.from(completed));
+      updateOnboardingStep('quiz');
+      navigate('/onboarding/quiz');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const stepIdx = ONBOARDING_STEPS.findIndex(s => s.id === 'training') + 1;
@@ -139,3 +140,4 @@ export function OnboardingTraining() {
     </div>
   );
 }
+

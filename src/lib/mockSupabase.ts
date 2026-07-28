@@ -72,6 +72,29 @@ const DB: Record<string, Record<string, unknown>[]> = {
   quiz_attempts: [],
   interview_slots: [],
   account_health_checks: [],
+  notification_preferences: [{
+    id: 'notif-pref-001',
+    worker_id: MOCK_USER_ID,
+    email_new_gig: true,
+    email_disbursement: true,
+    email_fee_record: true,
+    email_compliance: true,
+    sms_disbursement: false,
+    push_new_gig: true,
+    push_disbursement: true,
+  }],
+  worker_security_settings: [{
+    id: 'security-001',
+    worker_id: MOCK_USER_ID,
+    two_factor_enabled: false,
+    two_factor_method: null,
+    two_factor_enabled_at: null,
+    updated_at: new Date().toISOString(),
+  }],
+  worker_bank_accounts: [],
+  worker_kyc_submissions: [],
+  worker_signed_documents: [],
+  storage_objects: [],
 };
 
 // Helper to get table rows (returns copy to avoid mutations leaking)
@@ -91,8 +114,9 @@ class QueryBuilder<T = Record<string, unknown>> {
   private _orderAsc = true;
   private _single = false;
   private _updateData: Partial<Record<string, unknown>> | null = null;
-  private _insertData: Partial<Record<string, unknown>> | null = null;
-  private _upsertData: Partial<Record<string, unknown>> | null = null;
+  private _insertData: Partial<Record<string, unknown>> | Partial<Record<string, unknown>>[] | null = null;
+  private _upsertData: Partial<Record<string, unknown>> | Partial<Record<string, unknown>>[] | null = null;
+  private _upsertConflictKeys: string[] | null = null;
   private _isDelete = false;
 
   constructor(table: string) {
@@ -119,13 +143,14 @@ class QueryBuilder<T = Record<string, unknown>> {
     return this;
   }
 
-  insert(data: Partial<Record<string, unknown>>): this {
+  insert(data: Partial<Record<string, unknown>> | Partial<Record<string, unknown>>[]): this {
     this._insertData = data;
     return this;
   }
 
-  upsert(data: Partial<Record<string, unknown>>): this {
+  upsert(data: Partial<Record<string, unknown>> | Partial<Record<string, unknown>>[], opts?: { onConflict?: string }): this {
     this._upsertData = data;
+    this._upsertConflictKeys = opts?.onConflict?.split(',').map(key => key.trim()).filter(Boolean) ?? null;
     return this;
   }
 
@@ -142,20 +167,36 @@ class QueryBuilder<T = Record<string, unknown>> {
     const table = this._table;
 
     if (this._insertData) {
-      const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...this._insertData };
-      DB[table] = DB[table] ? [...DB[table], row] : [row];
-      return { data: row, error: null };
+      const inputs = Array.isArray(this._insertData) ? this._insertData : [this._insertData];
+      const rows = inputs.map(input => ({
+        id: input['id'] ?? crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        ...input,
+      }));
+      DB[table] = DB[table] ? [...DB[table], ...rows] : rows;
+      return { data: Array.isArray(this._insertData) ? rows : rows[0], error: null };
     }
 
     if (this._upsertData) {
-      const row = this._upsertData as Record<string, unknown>;
-      const idx = DB[table]?.findIndex((r) => r['id'] === row['id']);
-      if (idx !== undefined && idx >= 0) {
-        DB[table][idx] = { ...DB[table][idx], ...row, updated_at: new Date().toISOString() };
-      } else {
-        DB[table] = DB[table] ? [...DB[table], { created_at: new Date().toISOString(), ...row }] : [row];
-      }
-      return { data: row, error: null };
+      const inputs = Array.isArray(this._upsertData) ? this._upsertData : [this._upsertData];
+      const keys = this._upsertConflictKeys?.length ? this._upsertConflictKeys : ['id'];
+      DB[table] = DB[table] ?? [];
+      const rows = inputs.map(input => {
+        const idx = DB[table].findIndex(row => keys.every(key => row[key] === input[key]));
+        const next = {
+          id: input['id'] ?? (idx >= 0 ? DB[table][idx]['id'] : crypto.randomUUID()),
+          created_at: idx >= 0 ? DB[table][idx]['created_at'] : new Date().toISOString(),
+          ...input,
+          updated_at: new Date().toISOString(),
+        };
+        if (idx >= 0) {
+          DB[table][idx] = { ...DB[table][idx], ...next };
+        } else {
+          DB[table].push(next);
+        }
+        return next;
+      });
+      return { data: Array.isArray(this._upsertData) ? rows : rows[0], error: null };
     }
 
     let rows = getTable(table);
@@ -357,9 +398,15 @@ export const supabase = {
       return {
         upload: async () => ({ data: null, error: null }),
         getPublicUrl: (_path: string) => ({ data: { publicUrl: '' } }),
+        createSignedUrl: async (path: string) => ({ data: { signedUrl: 'mock://kyc-documents/' + path }, error: null }),
       };
     },
   },
 } as const;
+
+
+
+
+
 
 

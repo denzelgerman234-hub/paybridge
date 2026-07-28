@@ -54,6 +54,7 @@ function createMissingConfigClient() {
       from: () => ({
         upload: fail,
         getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        createSignedUrl: fail,
       }),
     },
   };
@@ -72,3 +73,4 @@ export const supabase: any = isUsingMock
   : hasSupabaseCredentials
     ? createClient(supabaseUrl!, supabaseAnonKey!)
     : createMissingConfigClient();
+

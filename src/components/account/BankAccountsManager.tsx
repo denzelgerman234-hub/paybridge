@@ -1,11 +1,16 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Edit3, Landmark, Plus, Save, Star, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input, Select } from '../ui/Input';
 import { PARTNER_BANKS } from '../../lib/constants';
-import { localDb } from '../../lib/localDb';
+import {
+  addWorkerBankAccount,
+  deleteWorkerBankAccount,
+  listWorkerBankAccounts,
+  updateWorkerBankAccount,
+} from '../../lib/onboardingData';
 import { WorkerBankAccount, WorkerBankAccountType } from '../../types/database';
 
 const accountTypeOptions: { value: WorkerBankAccountType; label: string }[] = [
@@ -30,10 +35,12 @@ interface BankAccountsManagerProps {
 }
 
 export function BankAccountsManager({ workerId, onboarding = false, onReadyChange }: BankAccountsManagerProps) {
-  const [accounts, setAccounts] = useState<WorkerBankAccount[]>(() => localDb.listBankAccounts(workerId));
+  const [accounts, setAccounts] = useState<WorkerBankAccount[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [savingAccount, setSavingAccount] = useState(false);
 
   const bankGroups = Object.entries(
     accounts.reduce<Record<string, WorkerBankAccount[]>>((grouped, account) => {
@@ -43,26 +50,38 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
     }, {}),
   ).sort(([a], [b]) => a.localeCompare(b));
 
-  function refresh() {
-    const next = localDb.listBankAccounts(workerId);
-    setAccounts(next);
-    onReadyChange?.(next.length > 0);
+  async function refresh() {
+    setLoadingAccounts(true);
+    try {
+      const next = await listWorkerBankAccounts(workerId);
+      setAccounts(next);
+      onReadyChange?.(next.length > 0);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not load bank accounts');
+    } finally {
+      setLoadingAccounts(false);
+    }
   }
+
+  useEffect(() => {
+    void refresh();
+  }, [workerId]);
 
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
   }
 
-  function handleAddAccount(e: FormEvent) {
+  async function handleAddAccount(e: FormEvent) {
     e.preventDefault();
     if (!form.bankName) {
       toast.error('Choose a partner bank');
       return;
     }
 
+    setSavingAccount(true);
     try {
-      localDb.addBankAccount({
+      await addWorkerBankAccount({
         workerId,
         bankName: form.bankName,
         accountLabel: form.accountLabel,
@@ -72,10 +91,12 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
         makePrimary: form.makePrimary || accounts.length === 0,
       });
       resetForm();
-      refresh();
+      await refresh();
       toast.success('Bank account added');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not add bank account');
+    } finally {
+      setSavingAccount(false);
     }
   }
 
@@ -91,33 +112,39 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
     });
   }
 
-  function handleUpdateAccount(e: FormEvent) {
+  async function handleUpdateAccount(e: FormEvent) {
     e.preventDefault();
     if (!editingId) return;
 
+    setSavingAccount(true);
     try {
-      localDb.updateBankAccount(editingId, workerId, {
+      await updateWorkerBankAccount(editingId, workerId, {
         bankName: form.bankName,
         accountLabel: form.accountLabel,
         accountType: form.accountType,
         makePrimary: form.makePrimary,
       });
       resetForm();
-      refresh();
+      await refresh();
       toast.success('Bank account updated');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not update bank account');
+    } finally {
+      setSavingAccount(false);
     }
   }
 
-  function handleDeleteAccount(accountId: string) {
+  async function handleDeleteAccount(accountId: string) {
+    setSavingAccount(true);
     try {
-      localDb.deleteBankAccount(accountId, workerId);
+      await deleteWorkerBankAccount(accountId, workerId);
       setDeleteId(null);
-      refresh();
+      await refresh();
       toast.success('Bank account removed');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not remove bank account');
+    } finally {
+      setSavingAccount(false);
     }
   }
 
@@ -134,7 +161,7 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-cream text-sm">Dedicated Accounts</h3>
-            <p className="text-xs text-cream/45">{accounts.length} account{accounts.length === 1 ? '' : 's'} on file</p>
+            <p className="text-xs text-cream/45">{loadingAccounts ? 'Loading accounts...' : `${accounts.length} account${accounts.length === 1 ? '' : 's'} on file`}</p>
           </div>
           {accounts.some(account => account.is_primary) && (
             <span className="status-verified flex items-center gap-1"><CheckCircle size={11} /> Ready</span>
@@ -142,7 +169,7 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
         </div>
 
         {accounts.length === 0 ? (
-          <div className="rounded border border-white/8 p-4 text-sm text-cream/50">No bank accounts added yet.</div>
+          <div className="rounded border border-white/8 p-4 text-sm text-cream/50">{loadingAccounts ? 'Loading bank accounts...' : 'No bank accounts added yet.'}</div>
         ) : (
           <div className="space-y-5">
             {bankGroups.map(([bankName, bankAccounts]) => (
@@ -176,7 +203,7 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
                         </div>
                         <div className="flex gap-2">
                           <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteId(null)}>Cancel</Button>
-                          <Button type="button" size="sm" variant="danger" onClick={() => handleDeleteAccount(account.id)}>Delete</Button>
+                          <Button type="button" size="sm" variant="danger" loading={savingAccount} onClick={() => handleDeleteAccount(account.id)}>Delete</Button>
                         </div>
                       </div>
                     )}
@@ -262,7 +289,7 @@ export function BankAccountsManager({ workerId, onboarding = false, onReadyChang
           </label>
 
           <div className="flex justify-end">
-            <Button type="submit" icon={editingId ? <Save size={15} /> : <Plus size={15} />} disabled={!form.bankName}>
+            <Button type="submit" icon={editingId ? <Save size={15} /> : <Plus size={15} />} disabled={!form.bankName || savingAccount} loading={savingAccount}>
               {editingId ? 'Save Account' : 'Add Account'}
             </Button>
           </div>

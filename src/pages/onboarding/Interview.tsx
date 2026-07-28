@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { RiVideoLine, RiMessage2Line, RiCalendarEventLine, RiCheckboxCircleLine } from 'react-icons/ri';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { scheduleWorkerInterview } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { ONBOARDING_STEPS } from '../../lib/constants';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-
 
 const SLOTS: Record<string, string[]> = {
   'Mon, Jul 28': ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM'],
@@ -16,7 +15,7 @@ const SLOTS: Record<string, string[]> = {
 };
 
 export function OnboardingInterview() {
-  const { profile } = useAppStore();
+  const { profile, updateOnboardingStep } = useAppStore();
   const navigate = useNavigate();
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -29,14 +28,13 @@ export function OnboardingInterview() {
   async function handleBook() {
     if (!selectedDay || !selectedTime) return;
     setLoading(true);
-    await supabase.from('interview_slots').insert({
-      worker_id: profile!.id,
-      scheduled_at: new Date(`${selectedDay} ${selectedTime}`).toISOString(),
-      status: 'scheduled',
-    });
-    await supabase.from('worker_profiles').update({ onboarding_step: 'bank' }).eq('id', profile!.id);
-    setLoading(false);
-    setBooked(true);
+    try {
+      await scheduleWorkerInterview(profile!.id, new Date(`${selectedDay} ${selectedTime}`).toISOString(), format);
+      updateOnboardingStep('bank');
+      setBooked(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (booked) {
@@ -51,7 +49,7 @@ export function OnboardingInterview() {
             <p className="text-cream/50 mb-1">{selectedDay} at {selectedTime}</p>
             <p className="text-sm text-cream/50 mb-6">Format: {format === 'video' ? 'Video Call' : 'Live Chat'}</p>
             <Button className="w-full" size="lg" onClick={() => navigate('/onboarding/bank')}>
-              Continue to Bank Setup →
+              Continue to Bank Setup
             </Button>
           </div>
         </Card>
@@ -63,15 +61,14 @@ export function OnboardingInterview() {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gold mb-1">
-          Step {stepIdx} of {ONBOARDING_STEPS.length} — Interview
+          Step {stepIdx} of {ONBOARDING_STEPS.length} - Interview
         </p>
         <h1 className="text-3xl font-black text-cream">Schedule Your Interview</h1>
-        <p className="text-cream/50 mt-1">10–15 minute video or live-chat session with our onboarding team.</p>
+        <p className="text-cream/50 mt-1">10-15 minute video or live-chat session with our onboarding team.</p>
       </div>
 
       <ProgressBar value={stepIdx} max={ONBOARDING_STEPS.length} label="Onboarding progress" showPercent />
 
-      {/* What's covered */}
       <Card padding="md">
         <h3 className="font-bold text-cream mb-3 text-sm">Topics covered:</h3>
         <ul className="space-y-1.5 text-sm text-cream/50">
@@ -90,7 +87,6 @@ export function OnboardingInterview() {
         </ul>
       </Card>
 
-      {/* Format */}
       <Card padding="md">
         <p className="text-sm font-semibold text-cream/50 mb-3">Select format:</p>
         <div className="grid grid-cols-2 gap-3">
@@ -113,7 +109,6 @@ export function OnboardingInterview() {
         </div>
       </Card>
 
-      {/* Slot picker */}
       <Card padding="md">
         <p className="text-sm font-semibold text-cream/50 mb-4 flex items-center gap-2">
           <RiCalendarEventLine size={16} /> Select a time slot:
@@ -133,7 +128,7 @@ export function OnboardingInterview() {
                         : 'border-white/8 text-cream/50 hover:border-gold/30 hover:text-cream'
                     }`}
                   >
-                    <span style={{color:"#C9A84C",fontSize:14}}>?</span> {t}
+                    <span style={{color:"#C9A84C",fontSize:14}}>+</span> {t}
                   </button>
                 ))}
               </div>

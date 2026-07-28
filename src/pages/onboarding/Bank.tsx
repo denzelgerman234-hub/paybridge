@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { localDb } from '../../lib/localDb';
+import { setWorkerOnboardingStep, listWorkerBankAccounts } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { ONBOARDING_STEPS } from '../../lib/constants';
 import { ProgressBar } from '../../components/ui/ProgressBar';
@@ -11,19 +10,38 @@ import { Card } from '../../components/ui/Card';
 import { BankAccountsManager } from '../../components/account/BankAccountsManager';
 
 export function OnboardingBank() {
-  const { profile } = useAppStore();
+  const { profile, updateOnboardingStep } = useAppStore();
   const navigate = useNavigate();
-  const [hasAccounts, setHasAccounts] = useState(() => profile ? localDb.listBankAccounts(profile.id).length > 0 : false);
+  const [hasAccounts, setHasAccounts] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingAccounts, setCheckingAccounts] = useState(true);
 
   const stepIdx = ONBOARDING_STEPS.findIndex(s => s.id === 'bank') + 1;
+
+  useEffect(() => {
+    if (!profile) return;
+    let active = true;
+    setCheckingAccounts(true);
+    listWorkerBankAccounts(profile.id)
+      .then(accounts => {
+        if (active) setHasAccounts(accounts.length > 0);
+      })
+      .finally(() => {
+        if (active) setCheckingAccounts(false);
+      });
+    return () => { active = false; };
+  }, [profile]);
 
   async function handleContinue() {
     if (!hasAccounts) return;
     setLoading(true);
-    await supabase.from('worker_profiles').update({ onboarding_step: 'payout' }).eq('id', profile!.id);
-    setLoading(false);
-    navigate('/onboarding/payout');
+    try {
+      await setWorkerOnboardingStep(profile!.id, 'payout');
+      updateOnboardingStep('payout');
+      navigate('/onboarding/payout');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -57,7 +75,7 @@ export function OnboardingBank() {
         />
       )}
 
-      <Button className="w-full" size="lg" onClick={handleContinue} loading={loading} disabled={!hasAccounts}>
+      <Button className="w-full" size="lg" onClick={handleContinue} loading={loading} disabled={!hasAccounts || checkingAccounts}>
         Review Fee Instructions
       </Button>
 

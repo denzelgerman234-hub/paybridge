@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { setWorkerOnboardingStep } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { ONBOARDING_STEPS } from '../../lib/constants';
 import { ProgressBar } from '../../components/ui/ProgressBar';
@@ -18,13 +18,13 @@ export function OnboardingPayout() {
 
   async function handleSave() {
     setLoading(true);
-    await supabase.from('worker_profiles').update({
-      onboarding_step: 'payout',
-      onboarding_completed: true,
-    }).eq('id', profile!.id);
-    updateOnboardingStep('payout', true);
-    setLoading(false);
-    setDone(true);
+    try {
+      await setWorkerOnboardingStep(profile!.id, 'payout', true);
+      updateOnboardingStep('payout', true);
+      setDone(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (done) {
@@ -93,3 +93,4 @@ export function OnboardingPayout() {
     </div>
   );
 }
+

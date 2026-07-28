@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { useAppStore } from '../stores/appStore';
-import { OnboardingStep } from '../types/database';
 import { ONBOARDING_STEPS } from '../lib/constants';
+import {
+  completeTrainingModules,
+  recordQuizAttempt,
+  saveWorkerProfile,
+  scheduleWorkerInterview,
+  setWorkerOnboardingStep,
+} from '../lib/onboardingData';
 
 export function useOnboarding() {
   const { profile, updateOnboardingStep } = useAppStore();
@@ -17,69 +22,68 @@ export function useOnboarding() {
 
   async function saveProfile(data: { full_name: string; phone: string; country: string; avatar_url?: string }) {
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from('worker_profiles')
-      .update({ ...data, onboarding_step: 'training' })
-      .eq('id', profile!.id);
-
-    if (error) throw error;
-    updateOnboardingStep('training');
-    navigate('/onboarding/training');
-    setIsSubmitting(false);
+    try {
+      await saveWorkerProfile(profile!.id, data);
+      updateOnboardingStep('training');
+      navigate('/onboarding/training');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function completeTraining() {
     setIsSubmitting(true);
-    await supabase.from('training_progress').insert({
-      worker_id: profile!.id,
-      module_id: 'all',
-      completed: true,
-    });
-    updateOnboardingStep('quiz');
-    navigate('/onboarding/quiz');
-    setIsSubmitting(false);
+    try {
+      await completeTrainingModules(profile!.id, ['all']);
+      updateOnboardingStep('quiz');
+      navigate('/onboarding/quiz');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function completeQuiz(score: number) {
     setIsSubmitting(true);
-    await supabase.from('quiz_attempts').insert({
-      worker_id: profile!.id,
-      score,
-      passed: score >= 70,
-    });
-    updateOnboardingStep('interview');
-    navigate('/onboarding/interview');
-    setIsSubmitting(false);
+    try {
+      await recordQuizAttempt(profile!.id, score, score >= 70);
+      updateOnboardingStep('interview');
+      navigate('/onboarding/interview');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function scheduleInterview(scheduledAt: string) {
     setIsSubmitting(true);
-    await supabase.from('interview_slots').insert({
-      worker_id: profile!.id,
-      scheduled_at: scheduledAt,
-    });
-    updateOnboardingStep('bank');
-    navigate('/onboarding/bank');
-    setIsSubmitting(false);
+    try {
+      await scheduleWorkerInterview(profile!.id, scheduledAt);
+      updateOnboardingStep('bank');
+      navigate('/onboarding/bank');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function saveBankInfo(_data: { account_type: string; account_number: string; bank_name: string }) {
     setIsSubmitting(true);
-    await supabase.from('worker_profiles').update({ onboarding_step: 'payout' }).eq('id', profile!.id);
-    updateOnboardingStep('payout');
-    navigate('/onboarding/payout');
-    setIsSubmitting(false);
+    try {
+      await setWorkerOnboardingStep(profile!.id, 'payout');
+      updateOnboardingStep('payout');
+      navigate('/onboarding/payout');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function completeFeeInstructions() {
     setIsSubmitting(true);
-    await supabase
-      .from('worker_profiles')
-      .update({ onboarding_completed: true, onboarding_step: 'payout' })
-      .eq('id', profile!.id);
-    updateOnboardingStep('payout', true);
-    navigate('/dashboard');
-    setIsSubmitting(false);
+    try {
+      await setWorkerOnboardingStep(profile!.id, 'payout', true);
+      updateOnboardingStep('payout', true);
+      navigate('/dashboard');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return {
@@ -96,4 +100,3 @@ export function useOnboarding() {
     completeFeeInstructions,
   };
 }
-

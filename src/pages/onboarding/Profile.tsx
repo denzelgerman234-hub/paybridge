@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { supabase } from '../../lib/supabase';
+import { saveWorkerProfile } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { ONBOARDING_STEPS } from '../../lib/constants';
 import { User, Phone, Globe } from 'lucide-react';
@@ -12,7 +12,7 @@ import { User, Phone, Globe } from 'lucide-react';
 const COUNTRIES = ['United States'];
 
 export function OnboardingProfile() {
-  const { profile } = useAppStore();
+  const { profile, updateOnboardingStep } = useAppStore();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     full_name: profile?.full_name || '',
@@ -28,9 +28,13 @@ export function OnboardingProfile() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await supabase.from('worker_profiles').update({ ...form, onboarding_step: 'training' }).eq('id', profile!.id);
-    setLoading(false);
-    navigate('/onboarding/training');
+    try {
+      await saveWorkerProfile(profile!.id, form);
+      updateOnboardingStep('training');
+      navigate('/onboarding/training');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const stepIdx = ONBOARDING_STEPS.findIndex(s => s.id === 'profile') + 1;
@@ -69,4 +73,5 @@ export function OnboardingProfile() {
     </div>
   );
 }
+
 

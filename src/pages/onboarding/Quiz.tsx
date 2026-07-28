@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { recordQuizAttempt } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { QUIZ_QUESTIONS, QUIZ_PASS_MIN_CORRECT, QUIZ_TOTAL, ONBOARDING_STEPS } from '../../lib/constants';
 import { ProgressBar } from '../../components/ui/ProgressBar';
@@ -9,7 +9,7 @@ import { Card } from '../../components/ui/Card';
 
 
 export function OnboardingQuiz() {
-  const { profile } = useAppStore();
+  const { profile, updateOnboardingStep } = useAppStore();
   const navigate = useNavigate();
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -26,20 +26,18 @@ export function OnboardingQuiz() {
 
   async function handleContinue() {
     setLoading(true);
-    await supabase.from('quiz_attempts').insert({
-      worker_id: profile!.id,
-      score: Math.round((correct / QUIZ_TOTAL) * 100),
-      passed,
-      completed_at: new Date().toISOString(),
-    });
-    if (passed) {
-      await supabase.from('worker_profiles').update({ onboarding_step: 'interview' }).eq('id', profile!.id);
-      navigate('/onboarding/interview');
-    } else {
-      setSubmitted(false);
-      setAnswers({});
+    try {
+      await recordQuizAttempt(profile!.id, Math.round((correct / QUIZ_TOTAL) * 100), passed);
+      if (passed) {
+        updateOnboardingStep('interview');
+        navigate('/onboarding/interview');
+      } else {
+        setSubmitted(false);
+        setAnswers({});
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   if (submitted) {
@@ -163,3 +161,4 @@ export function OnboardingQuiz() {
     </div>
   );
 }
+

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
-import { localDb } from '../lib/localDb';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -11,6 +10,16 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { BankAccountsManager } from '../components/account/BankAccountsManager';
 import { useAppStore } from '../stores/appStore';
 import { KycStatus, LegalDocumentType, NotificationPreference, WorkerKycSubmission, WorkerSecuritySetting, WorkerSignedDocument } from '../types/database';
+import {
+  getLatestKycSubmission,
+  getNotificationPreferences,
+  getWorkerSecuritySetting,
+  listWorkerSignedDocuments,
+  setWorkerTwoFactorEnabled,
+  signWorkerDocument,
+  submitWorkerKyc,
+  updateNotificationPreference,
+} from '../lib/onboardingData';
 import toast from 'react-hot-toast';
 import {
   AlertTriangle,
@@ -151,19 +160,32 @@ export function AccountPage() {
 
   useEffect(() => {
     if (!profile) return;
+    let active = true;
     const workerId = profile.id;
+
+    async function loadAccountData() {
+      try {
+        const [preferences, security, latestKyc, documents] = await Promise.all([
+          getNotificationPreferences(workerId),
+          getWorkerSecuritySetting(workerId),
+          getLatestKycSubmission(workerId),
+          listWorkerSignedDocuments(workerId),
+        ]);
+        if (!active) return;
+        setNotificationPreferences(preferences);
+        setSecuritySetting(security);
+        setKycSubmission(latestKyc);
+        setSignedDocuments(documents);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not load account records');
+      }
+    }
+
     setForm({ full_name: profile.full_name, phone: profile.phone, country: profile.country });
     setW9Form(prev => ({ ...prev, name: profile.full_name }));
-    setNotificationPreferences(localDb.getNotificationPreferences(workerId));
-    setSecuritySetting(localDb.getSecuritySetting(workerId));
-    setKycSubmission(localDb.getKycSubmission(workerId));
-    setSignedDocuments(localDb.getSignedDocuments(workerId));
-    return localDb.subscribe(() => {
-      setNotificationPreferences(localDb.getNotificationPreferences(workerId));
-      setSecuritySetting(localDb.getSecuritySetting(workerId));
-      setKycSubmission(localDb.getKycSubmission(workerId));
-      setSignedDocuments(localDb.getSignedDocuments(workerId));
-    });
+    void loadAccountData();
+
+    return () => { active = false; };
   }, [profile]);
 
   if (isLoading || !profile) return <LoadingSpinner text="Loading account..." />;
@@ -284,7 +306,7 @@ export function AccountPage() {
         if (error) throw error;
       }
 
-      localDb.submitKyc({
+      await submitWorkerKyc({
         workerId: profile!.id,
         idDocumentType: kycForm.idDocumentType,
         idDocumentFile,
@@ -293,6 +315,7 @@ export function AccountPage() {
         storagePath,
       });
       setProfile({ ...profile!, kyc_status: 'submitted' });
+      setKycSubmission(await getLatestKycSubmission(profile!.id));
       setKycForm(prev => ({ ...prev, taxIdNumber: '' }));
       setIdDocumentFile(null);
       await waitAtLeast(startedAt);
@@ -356,8 +379,8 @@ export function AccountPage() {
         await wait(600);
       }
 
-      localDb.setTwoFactorEnabled(profile!.id, true);
-      setSecuritySetting(localDb.getSecuritySetting(profile!.id));
+      await setWorkerTwoFactorEnabled(profile!.id, true);
+      setSecuritySetting(await getWorkerSecuritySetting(profile!.id));
       setTwoFactorCode('');
       setTwoFactorSetup(null);
       setIsTwoFactorModalOpen(false);
@@ -369,12 +392,16 @@ export function AccountPage() {
     }
   }
 
-  function toggleNotificationPreference(key: NotificationPreferenceKey) {
+  async function toggleNotificationPreference(key: NotificationPreferenceKey) {
     if (!notificationPreferences) return;
     const nextValue = !notificationPreferences[key];
-    localDb.updateNotificationPreference(profile!.id, key, nextValue);
-    setNotificationPreferences({ ...notificationPreferences, [key]: nextValue });
-    toast.success('Notification preference updated');
+    try {
+      await updateNotificationPreference(profile!.id, key, nextValue);
+      setNotificationPreferences({ ...notificationPreferences, [key]: nextValue });
+      toast.success('Notification preference updated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update preference');
+    }
   }
 
   const kycStatus = (kycSubmission?.status ?? profile.kyc_status ?? 'not_started') as KycStatus;
@@ -397,7 +424,7 @@ export function AccountPage() {
     setSigningW9(true);
     try {
       await wait(800);
-      localDb.signDocument({
+      await signWorkerDocument({
         workerId: profile!.id,
         documentType: 'irs_w9',
         signature: w9Form.signature,
@@ -412,7 +439,7 @@ export function AccountPage() {
           taxIdLast4: cleanTaxId.slice(-4),
         },
       });
-      setSignedDocuments(localDb.getSignedDocuments(profile!.id));
+      setSignedDocuments(await listWorkerSignedDocuments(profile!.id));
       setIsW9ModalOpen(false);
       setW9Form(prev => ({ ...prev, taxIdNumber: '', signature: '', certified: false }));
       toast.success('IRS Form W-9 signed and recorded');
@@ -964,3 +991,6 @@ export function AccountPage() {
     </div>
   );
 }
+
+
+

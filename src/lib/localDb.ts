@@ -27,6 +27,7 @@ import {
   WorkerProfile,
 } from '../types/database';
 import { MOCK_USER_ID } from './mockData';
+import { ApplicationStatus, MOCK_APPLICATIONS, WorkerApplication } from './adminMockData';
 
 const STORAGE_KEY = 'paybridge.local.operational.v1';
 const DB_CHANGE_EVENT = 'paybridge-local-db-change';
@@ -41,6 +42,10 @@ type CreateGigInput = Omit<WorkerGig, 'id' | 'worker_id' | 'commission_amount' |
   beneficiaries?: CreateGigBeneficiary[];
 };
 
+type WorkerApplicationInput = Omit<WorkerApplication, 'id' | 'worker_id' | 'status' | 'submitted_at' | 'reviewed_at' | 'reviewed_by'> & {
+  worker_id?: string | null;
+};
+
 export interface LocalWorkerSummary {
   id: string;
   full_name: string;
@@ -53,6 +58,7 @@ export interface LocalWorkerSummary {
 interface LocalDbState {
   schema_version: number;
   workers: LocalWorkerSummary[];
+  worker_applications: WorkerApplication[];
   gigs: WorkerGig[];
   gig_applications: GigApplication[];
   worker_disbursements: WorkerDisbursement[];
@@ -279,6 +285,7 @@ function seedState(): LocalDbState {
   return {
     schema_version: 1,
     workers,
+    worker_applications: MOCK_APPLICATIONS,
     gigs,
     gig_applications: [],
     worker_disbursements,
@@ -379,6 +386,7 @@ function load(): LocalDbState {
     return {
       ...seedState(),
       ...parsed,
+      worker_applications: parsed.worker_applications ?? seedState().worker_applications,
       commission_ledger: parsed.commission_ledger ?? [],
       funding_events: parsed.funding_events ?? [],
       storage_objects: parsed.storage_objects ?? [],
@@ -1179,6 +1187,120 @@ export const localDb = {
     });
   },
 
+  listWorkerApplications(status?: ApplicationStatus | 'all') {
+    const state = load();
+    return state.worker_applications
+      .filter(application => !status || status === 'all' || application.status === status)
+      .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+  },
+
+  getWorkerApplicationForUser(workerId?: string | null, email?: string | null) {
+    const normalizedEmail = email?.trim().toLowerCase();
+    return load().worker_applications
+      .filter(application =>
+        Boolean(workerId && application.worker_id === workerId) ||
+        Boolean(normalizedEmail && application.email.toLowerCase() === normalizedEmail),
+      )
+      .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0] ?? null;
+  },
+
+  submitWorkerApplication(input: WorkerApplicationInput) {
+    return mutate(state => {
+      const email = input.email.trim().toLowerCase();
+      const existing = state.worker_applications.find(application => application.email.toLowerCase() === email);
+      const record: WorkerApplication = {
+        ...input,
+        id: existing?.id ?? id('worker-app'),
+        email,
+        worker_id: input.worker_id ?? existing?.worker_id ?? null,
+        status: 'pending',
+        submitted_at: existing?.submitted_at ?? now(),
+        reviewed_at: null,
+        reviewed_by: null,
+        notes: input.notes ?? existing?.notes ?? null,
+      };
+
+      if (existing) {
+        Object.assign(existing, record);
+      } else {
+        state.worker_applications.unshift(record);
+      }
+
+      addAdminNotification(state, {
+        title: 'Worker Application Submitted',
+        body: `${record.full_name} submitted a worker application for account verification.`,
+        href: '/admin/applications',
+      });
+      addAudit(state, {
+        worker_id: record.worker_id ?? null,
+        event_type: 'worker_application_submitted',
+        entity_type: 'worker_application',
+        entity_id: record.id,
+        summary: `${record.full_name} submitted a worker application.`,
+      });
+    });
+  },
+
+  reviewWorkerApplication(applicationId: string, status: ApplicationStatus, reviewNote: string) {
+    return mutate(state => {
+      const application = state.worker_applications.find(item => item.id === applicationId);
+      if (!application) throw new Error('Application not found');
+
+      application.status = status;
+      application.notes = reviewNote || application.notes;
+      application.reviewed_at = now();
+      application.reviewed_by = 'admin-local';
+
+      if (status === 'approved') {
+        const workerId = application.worker_id || state.workers.find(worker => worker.email.toLowerCase() === application.email.toLowerCase())?.id || id('worker');
+        let worker = state.workers.find(item => item.id === workerId || item.email.toLowerCase() === application.email.toLowerCase());
+        if (!worker) {
+          worker = {
+            id: workerId,
+            full_name: application.full_name,
+            email: application.email,
+            badge: 'trainee',
+            account_health: 'healthy',
+            onboarding_completed: false,
+          };
+          state.workers.unshift(worker);
+        } else {
+          worker.full_name = application.full_name;
+          worker.email = application.email;
+          worker.account_health = 'healthy';
+        }
+        application.worker_id = worker.id;
+
+        if (!state.notification_preferences.some(item => item.worker_id === worker!.id)) {
+          state.notification_preferences.push(defaultNotificationPreferences(worker.id));
+        }
+        if (!state.security_settings.some(item => item.worker_id === worker!.id)) {
+          state.security_settings.push(defaultSecuritySetting(worker.id));
+        }
+      }
+
+      if (application.worker_id) {
+        addNotification(state, {
+          worker_id: application.worker_id,
+          title: status === 'approved' ? 'Application approved' : status === 'rejected' ? 'Application not approved' : 'Application under review',
+          body: status === 'approved'
+            ? 'Your PayBridge worker account has been verified. Continue onboarding to unlock gigs.'
+            : status === 'rejected'
+              ? (application.notes || 'Your application was not approved. Contact support if you need clarification.')
+              : 'Your application is now under admin review.',
+          href: status === 'approved' ? '/dashboard' : '/application-status',
+        });
+      }
+
+      addAudit(state, {
+        worker_id: application.worker_id ?? null,
+        event_type: `worker_application_${status}`,
+        entity_type: 'worker_application',
+        entity_id: application.id,
+        summary: `${application.full_name} application marked ${status.replace('_', ' ')}.`,
+      });
+    });
+  },
   listGigApplications(status?: GigApplicationStatus | 'all') {
     const state = load();
     return state.gig_applications
@@ -1493,18 +1615,5 @@ export const localDb = {
     });
   },
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

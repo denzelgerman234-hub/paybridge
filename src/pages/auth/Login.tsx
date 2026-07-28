@@ -164,7 +164,7 @@ export function Login() {
       <div className="divider my-5" />
       <p className="text-center text-xs" style={{ color: DIM }}>
         Don't have an account?{' '}
-        <Link to="/signup" className="font-bold transition-colors" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>Apply Now</Link>
+        <Link to="/apply" className="font-bold transition-colors" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>Apply Now</Link>
       </p>
 
       <p className="text-center text-xs text-cream/50 mt-4 opacity-60">
@@ -173,3 +173,4 @@ export function Login() {
     </Card>
   );
 }
+

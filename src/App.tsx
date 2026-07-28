@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
@@ -13,6 +13,7 @@ import { AdminLayout }     from './components/layout/AdminLayout';
 // Public pages
 import { LandingPage }         from './components/landing/LandingPage';
 import { ApplyPage }           from './pages/ApplyPage';
+import { ApplicationStatusPage } from './pages/ApplicationStatusPage';
 import { FAQPage }             from './pages/FAQPage';
 import { ContactPage }         from './pages/ContactPage';
 import { TrainingPreviewPage } from './pages/TrainingPreviewPage';
@@ -22,7 +23,6 @@ import { CodeOfConduct }       from './pages/static/CodeOfConduct';
 
 // Auth pages
 import { Login }          from './pages/auth/Login';
-import { Signup }         from './pages/auth/Signup';
 import { VerifyEmail }    from './pages/auth/VerifyEmail';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { AuthCallback }   from './pages/auth/AuthCallback';
@@ -58,13 +58,21 @@ import { AdminOperations }   from './pages/admin/AdminOperations';
 import { AdminCommissions }  from './pages/admin/AdminCommissions';
 import { AdminCompliance }   from './pages/admin/AdminCompliance';
 import { useAdminStore }     from './stores/adminStore';
+import { localDb }           from './lib/localDb';
 
 // Route guards
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, profile } = useAuth();
+  const location = useLocation();
   if (isLoading) return <LoadingSpinner text="Checking authentication..." />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  const application = localDb.getWorkerApplicationForUser(profile?.id);
+  if (application && application.status !== 'approved' && location.pathname !== '/application-status') {
+    return <Navigate to="/application-status" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -124,7 +132,7 @@ export default function App() {
         {/* Auth */}
         <Route element={<AuthLayout />}>
           <Route path="/login"           element={<Login />} />
-          <Route path="/signup"          element={<Signup />} />
+          <Route path="/signup"          element={<Navigate to="/apply" replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-email"    element={<VerifyEmail />} />
           {/*
@@ -148,7 +156,7 @@ export default function App() {
 
         {/* Protected dashboard */}
         <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route path="/dashboard"      element={<DashboardPage />} />
+          <Route path="/application-status" element={<ApplicationStatusPage />} />`r`n          <Route path="/dashboard"      element={<DashboardPage />} />
           <Route path="/gigs"           element={<Navigate to="/gigs/available" replace />} />
           <Route path="/gigs/available" element={<GigsPage tab="available" />} />
           <Route path="/gigs/active"    element={<GigsPage tab="active" />} />
@@ -182,3 +190,5 @@ export default function App() {
     </>
   );
 }
+
+

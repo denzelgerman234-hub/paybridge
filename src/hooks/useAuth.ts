@@ -103,7 +103,8 @@ export function useAuth() {
       }
       throw error;
     }
-    navigate('/dashboard');
+    const application = localDb.getWorkerApplicationForUser(null, normalizedEmail);
+    navigate(application && application.status !== 'approved' ? '/application-status' : '/dashboard');
   }
 
   async function signUp(
@@ -158,6 +159,7 @@ export function useAuth() {
     setEmailUnverified(true);
     if (typeof window !== 'undefined') localStorage.setItem('pb_pending_email', normalizedEmail);
     navigate('/verify-email', { state: { email: normalizedEmail } });
+    return data?.user?.id ?? null;
   }
 
   async function resendVerification(email: string) {
@@ -192,3 +194,5 @@ export function useAuth() {
     resendVerification,
   };
 }
+
+

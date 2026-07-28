@@ -52,6 +52,7 @@ const _authListeners: AuthListener[] = [];
  * In mock mode, sign-in for these users will return an email_not_confirmed error.
  */
 const _pendingVerification = new Map<string, { id: string; password: string; profile: Record<string, unknown> }>();
+const _verifiedUsers = new Map<string, { id: string; password: string; profile: Record<string, unknown> }>();
 
 function _notifyAuth(event: string) {
   _authListeners.forEach((fn) => fn(event, _session));
@@ -231,16 +232,17 @@ export const supabase = {
       }
 
       const isAdminEmail = email.trim().toLowerCase() === 'admin@paybridge.work';
+      const verifiedUser = _verifiedUsers.get(email);
       _session = {
         user: {
-          id: MOCK_USER_ID,
+          id: verifiedUser?.id ?? MOCK_USER_ID,
           email,
           app_metadata: isAdminEmail ? { role: 'admin' } : {},
           user_metadata: { full_name: isAdminEmail ? 'PayBridge Admin' : 'PayBridge Worker' },
         },
       };
       // Update the profile's id to match (in case email changed)
-      const prof = DB.worker_profiles.find((p) => p['id'] === MOCK_USER_ID);
+      const prof = DB.worker_profiles.find((p) => p['id'] === (verifiedUser?.id ?? MOCK_USER_ID));
       if (prof) (prof as Record<string, unknown>)['email'] = email;
       _notifyAuth('SIGNED_IN');
       return { error: null };
@@ -273,7 +275,7 @@ export const supabase = {
       DB.worker_profiles.push(newProfile);
 
       // Do NOT notify SIGNED_IN - the user must verify their email first.
-      return { error: null };
+      return { data: { user: { id, email, email_confirmed_at: null }, session: null }, error: null };
     },
 
     /**
@@ -303,8 +305,9 @@ export const supabase = {
         // Pick the first pending user or fall back to mock user
         const pending = _pendingVerification.entries().next().value;
         if (pending) {
-          const [email, { id }] = pending as [string, { id: string; password: string; profile: Record<string, unknown> }];
+          const [email, { id, profile }] = pending as [string, { id: string; password: string; profile: Record<string, unknown> }];
           _pendingVerification.delete(email);
+          _verifiedUsers.set(email, { id, password: '', profile });
           _session = { user: { id, email, app_metadata: {}, user_metadata: { full_name: 'PayBridge Worker' } } };
         } else {
           // No pending user - sign in as the default mock user
@@ -358,3 +361,5 @@ export const supabase = {
     },
   },
 } as const;
+
+

@@ -1,98 +1,116 @@
 import { useState } from 'react';
-import { useAppStore } from '../stores/appStore';
-import { supabase } from '../lib/supabase';
-import { CheckCircle, Clock, User, Mail, Phone, Globe, FileText, ChevronRight } from 'lucide-react';
-import { Input, Textarea, Select } from '../components/ui/Input';
+import toast from 'react-hot-toast';
+import { CheckCircle, ChevronRight, FileText, Globe, Lock, Mail, Phone, User } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { localDb } from '../lib/localDb';
+import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { PARTNER_BANKS, DISBURSEMENT_METHODS } from '../lib/constants';
-import toast from 'react-hot-toast';
-import { useSmartBack } from '../hooks/useSmartBack';
 
 const COUNTRIES = ['United States'];
+const steps = ['Account', 'Background', 'Methods & Banks', 'Certify'];
 
-
-const steps = ['Personal Info', 'Background', 'Methods & Banks', 'Certify & Submit'];
+function friendlyApplyError(err: any): string {
+  const message = typeof err?.message === 'string' ? err.message : '';
+  const lower = message.toLowerCase();
+  if (err?.code === 'supabase_not_configured') return 'Signup is not connected yet. Please contact support.';
+  if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('user already')) return 'An account with this email already exists. Try signing in instead.';
+  if (lower.includes('invalid email')) return 'Enter a valid email address.';
+  if (lower.includes('password')) return message;
+  if (lower.includes('rate limit') || lower.includes('too many')) return 'Too many signup attempts. Please wait a moment and try again.';
+  return message || 'Application could not be submitted. Please try again.';
+}
 
 export function ApplyPage() {
+  const { signUp } = useAuth();
   const [step, setStep] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const goBack = useSmartBack('/');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({
-    full_name: '', email: '', phone: '', country: '', city: '',
-    occupation: '', why: '',
-    banks: [] as string[], account_count: '1', methods: [] as string[],
+    full_name: '', email: '', phone: '', country: '', city: '', password: '', confirm: '',
+    occupation: '', why: '', banks: [] as string[], account_count: '1', methods: [] as string[],
     agree_terms: false, agree_conduct: false,
   });
 
-  const up = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
+  const up = (key: string) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(previous => ({ ...previous, [key]: event.target.value }));
 
-  function toggleMethod(m: string) {
-    setForm(p => ({ ...p, methods: p.methods.includes(m) ? p.methods.filter(x => x !== m) : [...p.methods, m] }));
+  function toggleMethod(method: string) {
+    setForm(previous => ({ ...previous, methods: previous.methods.includes(method) ? previous.methods.filter(item => item !== method) : [...previous.methods, method] }));
   }
 
   function toggleBank(bank: string) {
-    setForm(p => ({ ...p, banks: p.banks.includes(bank) ? p.banks.filter(x => x !== bank) : [...p.banks, bank] }));
+    setForm(previous => ({ ...previous, banks: previous.banks.includes(bank) ? previous.banks.filter(item => item !== bank) : [...previous.banks, bank] }));
   }
 
-  function handleSubmit() {
-    toast.success('Application submitted! Check your email for next steps.');
-    setSubmitted(true);
+  function validateStep(currentStep = step) {
+    if (currentStep === 0) {
+      if (!form.full_name.trim() || !form.email.trim() || !form.phone.trim() || !form.country || !form.city.trim() || !form.password || !form.confirm) return 'Complete all account fields.';
+      if (form.password !== form.confirm) return 'Passwords do not match.';
+      if (form.password.length < 8) return 'Password must be at least 8 characters.';
+    }
+    if (currentStep === 1 && (!form.occupation || !form.why.trim())) return 'Complete your background details.';
+    if (currentStep === 2 && (form.methods.length === 0 || form.banks.length === 0)) return 'Select at least one method and one partner bank.';
+    if (currentStep === 3 && (!form.agree_terms || !form.agree_conduct)) return 'Accept the required certifications to submit.';
+    return '';
   }
 
-  if (submitted) {
-    return (
-      <div className="max-w-xl mx-auto px-6 py-24 text-center">
-        <div className="w-14 h-14 rounded mx-auto mb-6 flex items-center justify-center" style={{ background: 'rgba(125,201,154,0.1)', border: '1px solid rgba(125,201,154,0.25)' }}>
-          <CheckCircle size={28} strokeWidth={1.5} style={{ color: '#7DC99A' }} />
-        </div>
-        <h1 className="text-3xl font-black mb-3" style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#F1F0DA' }}>Application Submitted</h1>
-        <p className="mb-6" style={{ color: 'rgba(241,240,218,0.5)', fontSize: 14 }}>
-          We'll review your application and email you within 1-2 business days with your next steps, including manual identity review.
-        </p>
-        <div className="card p-5 text-left mb-8 space-y-3" style={{ fontSize: 13 }}>
-          {[
-            { done: true,  label: 'Application received' },
-            { done: false, label: 'Manual identity review - email incoming' },
-            { done: false, label: 'Background review' },
-            { done: false, label: 'Account activation + training access' },
-          ].map(({ done, label }) => (
-            <div key={label} className="flex items-center gap-2.5">
-              {done
-                ? <CheckCircle size={13} strokeWidth={2} style={{ color: '#7DC99A', flexShrink: 0 }} />
-                : <Clock       size={13} strokeWidth={1.5} style={{ color: '#C9A84C', flexShrink: 0 }} />}
-              <span style={{ color: done ? '#F1F0DA' : 'rgba(241,240,218,0.5)' }}>{label}</span>
-            </div>
-          ))}
-        </div>
-        <button type="button" onClick={goBack} className="btn-secondary">Back to Home</button>
-      </div>
-    );
+  function nextStep() {
+    const message = validateStep();
+    if (message) { setError(message); return; }
+    setError('');
+    setStep(current => current + 1);
+  }
+
+  async function handleSubmit() {
+    const message = validateStep(3);
+    if (message) { setError(message); return; }
+
+    setError('');
+    setLoading(true);
+    try {
+      const workerId = await signUp(form.email, form.password, form.full_name, form.phone, form.country);
+      localDb.submitWorkerApplication({
+        worker_id: workerId,
+        full_name: form.full_name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        country: form.country,
+        city: form.city.trim(),
+        occupation: form.occupation,
+        why: form.why.trim(),
+        bank: form.banks[0],
+        methods: form.methods,
+        notes: `Available banks: ${form.banks.join(', ')}. Dedicated accounts estimate: ${form.account_count}.`,
+      });
+      toast.success('Application submitted. Verify your email to continue.');
+    } catch (err: any) {
+      setError(friendlyApplyError(err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-20">
       <div className="text-center mb-10">
         <h1 className="text-3xl md:text-4xl font-black text-[#f8f8ff] mb-2">Apply to Become a Worker</h1>
-        <p className="text-[#a8a4c4]">Takes less than 5 minutes. Free to apply.</p>
+        <p className="text-[#a8a4c4]">One secure application creates your account and sends it to admin review.</p>
       </div>
 
-      {/* Step indicator */}
       <div className="flex items-center mb-8">
-        {steps.map((s, i) => (
-          <div key={s} className="flex items-center flex-1">
-            <div className={`flex flex-col items-center`}>
+        {steps.map((label, index) => (
+          <div key={label} className="flex items-center flex-1">
+            <div className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-primary-500 text-white' : 'bg-white/10 text-[#a8a4c4]'
+                index < step ? 'bg-emerald-500 text-white' : index === step ? 'bg-primary-500 text-white' : 'bg-white/10 text-[#a8a4c4]'
               }`}>
-                {i < step ? '✓' : i + 1}
+                {index < step ? <CheckCircle size={14} /> : index + 1}
               </div>
-              <span className="text-xs mt-1 text-[#a8a4c4] hidden sm:block whitespace-nowrap">{s}</span>
+              <span className="text-xs mt-1 text-[#a8a4c4] hidden sm:block whitespace-nowrap">{label}</span>
             </div>
-            {i < steps.length - 1 && (
-              <div className="h-px flex-1 mx-2 transition-colors" style={{ background: i < step ? '#10b981' : 'rgba(255,255,255,0.1)' }} />
-            )}
+            {index < steps.length - 1 && <div className="h-px flex-1 mx-2 transition-colors" style={{ background: index < step ? '#10b981' : 'rgba(255,255,255,0.1)' }} />}
           </div>
         ))}
       </div>
@@ -100,38 +118,40 @@ export function ApplyPage() {
       <Card padding="lg">
         {step === 0 && (
           <div className="space-y-4">
-            <h2 className="font-bold text-[#f8f8ff] mb-4">Personal Information</h2>
+            <h2 className="font-bold text-[#f8f8ff] mb-4">Account & Personal Information</h2>
             <Input label="Full Legal Name" value={form.full_name} onChange={up('full_name')} placeholder="As on your government ID" icon={<User size={15} />} />
             <Input label="Email Address" type="email" value={form.email} onChange={up('email')} placeholder="you@email.com" icon={<Mail size={15} />} />
             <Input label="Phone Number" type="tel" value={form.phone} onChange={up('phone')} placeholder="+1 555 000 1234" icon={<Phone size={15} />} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-[#a8a4c4]">Country</label>
+                <label className="label-caps block">Country</label>
                 <select value={form.country} onChange={up('country')} className="input-dark appearance-none">
                   <option value="">Select country</option>
-                  {COUNTRIES.map(c => <option key={c} value={c} className="bg-[#1e1c35]">{c}</option>)}
+                  {COUNTRIES.map(country => <option key={country} value={country} className="bg-[#1e1c35]">{country}</option>)}
                 </select>
               </div>
               <Input label="City" value={form.city} onChange={up('city')} placeholder="Your city" icon={<Globe size={15} />} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Password" type="password" value={form.password} onChange={up('password')} placeholder="Min 8 characters" icon={<Lock size={15} />} />
+              <Input label="Confirm Password" type="password" value={form.confirm} onChange={up('confirm')} placeholder="Repeat password" icon={<Lock size={15} />} />
             </div>
           </div>
         )}
 
         {step === 1 && (
           <div className="space-y-4">
-            <h2 className="font-bold text-[#f8f8ff] mb-4">Background</h2>
+            <h2 className="font-bold text-[#f8f8ff] mb-4">Work Background</h2>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[#a8a4c4]">Current Occupation</label>
+              <label className="label-caps block">Current Occupation</label>
               <select value={form.occupation} onChange={up('occupation')} className="input-dark appearance-none">
                 <option value="">Select occupation</option>
-                {['Employed full-time', 'Employed part-time', 'Self-employed', 'Student', 'Retired', 'Unemployed', 'Other'].map(o => (
-                  <option key={o} value={o} className="bg-[#1e1c35]">{o}</option>
-                ))}
+                {['Employed full-time', 'Employed part-time', 'Self-employed', 'Student', 'Retired', 'Unemployed', 'Other'].map(occupation => <option key={occupation} value={occupation} className="bg-[#1e1c35]">{occupation}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[#a8a4c4]">Why do you want to join PayBridge?</label>
-              <textarea value={form.why} onChange={up('why')} rows={4} placeholder="Tell us about your motivation and relevant experience (e.g., finance, banking, money transfers)..." className="input-dark resize-none" />
+              <label className="label-caps block">Why do you want to join PayBridge?</label>
+              <textarea value={form.why} onChange={up('why')} rows={4} placeholder="Tell us about your motivation and relevant finance, banking, or transfer experience." className="input-dark resize-none" />
             </div>
           </div>
         )}
@@ -140,39 +160,31 @@ export function ApplyPage() {
           <div className="space-y-5">
             <h2 className="font-bold text-[#f8f8ff] mb-4">Methods & Bank Accounts</h2>
             <div>
-              <p className="text-sm font-medium text-[#a8a4c4] mb-3">Disbursement methods you can use:</p>
+              <p className="label-caps mb-3">Disbursement methods you can use</p>
               <div className="grid grid-cols-2 gap-2">
-                {DISBURSEMENT_METHODS.map(m => (
-                  <label key={m.id} className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer border transition-all ${
-                    form.methods.includes(m.id) ? 'border-primary-500/40 bg-primary-500/10 text-[#f8f8ff]' : 'border-white/8 text-[#a8a4c4] hover:border-primary-500/20'
-                  }`}>
-                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${form.methods.includes(m.id) ? 'bg-primary-500 border-primary-400' : 'border-[#a8a4c4]'}`}>
-                      {form.methods.includes(m.id) && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    <input type="checkbox" className="hidden" checked={form.methods.includes(m.id)} onChange={() => toggleMethod(m.id)} />
-                    <span className="text-sm">{m.label}</span>
+                {DISBURSEMENT_METHODS.map(method => (
+                  <label key={method.id} className={`flex items-center gap-2 p-3 rounded cursor-pointer border transition-all ${form.methods.includes(method.id) ? 'border-primary-500/40 bg-primary-500/10 text-[#f8f8ff]' : 'border-white/8 text-[#a8a4c4] hover:border-primary-500/20'}`}>
+                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${form.methods.includes(method.id) ? 'bg-primary-500 border-primary-400' : 'border-[#a8a4c4]'}`}>{form.methods.includes(method.id) && <CheckCircle size={12} />}</div>
+                    <input type="checkbox" className="hidden" checked={form.methods.includes(method.id)} onChange={() => toggleMethod(method.id)} />
+                    <span className="text-sm">{method.label}</span>
                   </label>
                 ))}
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-[#a8a4c4] mb-3">Partner banks you can use:</p>
-              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+              <p className="label-caps mb-3">Partner banks you can use</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
                 {PARTNER_BANKS.map(bank => (
-                  <label key={bank} className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer border transition-all ${
-                    form.banks.includes(bank) ? 'border-primary-500/40 bg-primary-500/10 text-[#f8f8ff]' : 'border-white/8 text-[#a8a4c4] hover:border-primary-500/20'
-                  }`}>
-                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${form.banks.includes(bank) ? 'bg-primary-500 border-primary-400' : 'border-[#a8a4c4]'}`}>
-                      {form.banks.includes(bank) && <span className="text-white text-xs">+</span>}
-                    </div>
+                  <label key={bank} className={`flex items-center gap-2 p-3 rounded cursor-pointer border transition-all ${form.banks.includes(bank) ? 'border-primary-500/40 bg-primary-500/10 text-[#f8f8ff]' : 'border-white/8 text-[#a8a4c4] hover:border-primary-500/20'}`}>
+                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${form.banks.includes(bank) ? 'bg-primary-500 border-primary-400' : 'border-[#a8a4c4]'}`}>{form.banks.includes(bank) && <CheckCircle size={12} />}</div>
                     <input type="checkbox" className="hidden" checked={form.banks.includes(bank)} onChange={() => toggleBank(bank)} />
                     <span className="text-sm">{bank}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-[#a8a4c4] mb-2">Dedicated accounts estimate:</p>
+            <div className="space-y-1.5">
+              <label className="label-caps block">Dedicated accounts estimate</label>
               <select value={form.account_count} onChange={up('account_count')} className="input-dark appearance-none">
                 {['1', '2', '3', '4+'].map(count => <option key={count} value={count} className="bg-[#1e1c35]">{count}</option>)}
               </select>
@@ -183,44 +195,31 @@ export function ApplyPage() {
         {step === 3 && (
           <div className="space-y-4">
             <h2 className="font-bold text-[#f8f8ff] mb-4">Certifications & Agreements</h2>
-            <div className="space-y-3">
-              {[
-                { key: 'agree_terms', label: 'I agree to the PayBridge Worker Terms of Service and understand I am an independent contractor (1099-NEC).' },
-                { key: 'agree_conduct', label: 'I have read and agree to the Code of Conduct, including the requirement to maintain a dedicated disbursement account and never use personal funds for disbursements.' },
-              ].map(({ key, label }) => (
-                <label key={key} className={`flex items-start gap-3 p-4 rounded-xl cursor-pointer border transition-all ${
-                  (form as any)[key] ? 'border-primary-500/30 bg-primary-500/8' : 'border-white/8'
-                }`}>
-                  <div className={`w-5 h-5 rounded flex items-center justify-center border mt-0.5 flex-shrink-0 transition-all ${(form as any)[key] ? 'bg-primary-500 border-primary-400' : 'border-[#a8a4c4]'}`}>
-                    {(form as any)[key] && <span className="text-white text-xs">✓</span>}
-                  </div>
-                  <input type="checkbox" className="hidden" checked={(form as any)[key]} onChange={() => setForm(p => ({ ...p, [key]: !(p as any)[key] }))} />
-                  <p className="text-sm text-[#a8a4c4]">{label}</p>
-                </label>
-              ))}
-            </div>
-            <div className="text-xs text-[#a8a4c4] p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-              By submitting you certify that all information is accurate and complete. False information will result in immediate disqualification.
+            {[
+              { key: 'agree_terms', label: 'I agree to the PayBridge Worker Terms and understand I am applying as an independent contractor.' },
+              { key: 'agree_conduct', label: 'I agree to maintain a dedicated disbursement account and never use personal funds for platform disbursements.' },
+            ].map(({ key, label }) => (
+              <label key={key} className={`flex items-start gap-3 p-4 rounded cursor-pointer border transition-all ${(form as any)[key] ? 'border-primary-500/30 bg-primary-500/8' : 'border-white/8'}`}>
+                <div className={`w-5 h-5 rounded flex items-center justify-center border mt-0.5 flex-shrink-0 transition-all ${(form as any)[key] ? 'bg-primary-500 border-primary-400' : 'border-[#a8a4c4]'}`}>{(form as any)[key] && <CheckCircle size={13} />}</div>
+                <input type="checkbox" className="hidden" checked={(form as any)[key]} onChange={() => setForm(previous => ({ ...previous, [key]: !(previous as any)[key] }))} />
+                <p className="text-sm text-[#a8a4c4]">{label}</p>
+              </label>
+            ))}
+            <div className="text-xs text-[#a8a4c4] p-3 rounded" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              Submitting creates your login account, sends a verification email, and places your worker application in the admin review queue.
             </div>
           </div>
         )}
 
-        {/* Navigation */}
+        {error && <p className="text-sm text-red-400 text-center mt-5">{error}</p>}
+
         <div className="flex gap-3 mt-6 pt-6 border-t border-white/8">
-          {step > 0 && (
-            <Button variant="secondary" onClick={() => setStep(s => s - 1)}>← Back</Button>
-          )}
+          {step > 0 && <Button variant="secondary" disabled={loading} onClick={() => { setError(''); setStep(current => current - 1); }}>Back</Button>}
           <div className="flex-1" />
           {step < steps.length - 1 ? (
-            <Button onClick={() => setStep(s => s + 1)}>
-              Continue <ChevronRight size={16} />
-            </Button>
+            <Button onClick={nextStep}>Continue <ChevronRight size={16} /></Button>
           ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={!form.agree_terms || !form.agree_conduct}
-              icon={<FileText size={15} />}
-            >
+            <Button onClick={handleSubmit} loading={loading} disabled={loading || !form.agree_terms || !form.agree_conduct} icon={<FileText size={15} />}>
               Submit Application
             </Button>
           )}

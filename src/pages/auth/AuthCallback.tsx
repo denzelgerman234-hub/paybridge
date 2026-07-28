@@ -76,7 +76,7 @@ export function AuthCallback() {
   useEffect(() => {
     function markSuccess() {
       setState('success');
-      setTimeout(() => navigate('/dashboard', { replace: true }), 800);
+      setTimeout(() => navigate('/application-status', { replace: true }), 800);
     }
 
     function classifyError(error: any) {
@@ -207,7 +207,7 @@ export function AuthCallback() {
           Email Verified
         </h1>
         <p className="text-sm mb-6" style={{ color: DIM }}>
-          Your email has been confirmed. Taking you to your account...
+          Your email has been confirmed. Taking you to your application status...
         </p>
         <div className="flex justify-center">
           <div
@@ -343,3 +343,4 @@ export function AuthCallback() {
     </Card>
   );
 }
+

@@ -9,6 +9,7 @@ export type ApplicationStatus = 'pending' | 'in_review' | 'approved' | 'rejected
 
 export interface WorkerApplication {
   id: string;
+  worker_id: string | null;
   full_name: string;
   email: string;
   phone: string;
@@ -33,6 +34,7 @@ export const ADMIN_USER = { id: 'admin-001', email: 'admin@paybridge.work', name
 export const MOCK_APPLICATIONS: WorkerApplication[] = [
   {
     id: 'app-001',
+    worker_id: null,
     full_name: 'Danielle Carter',
     email: 'danielle.c@email.com',
     phone: '+1 555 200 3311',
@@ -50,6 +52,7 @@ export const MOCK_APPLICATIONS: WorkerApplication[] = [
   },
   {
     id: 'app-002',
+    worker_id: null,
     full_name: 'Emmanuel Adu',
     email: 'e.adu@email.com',
     phone: '+1 555 411 7722',
@@ -67,6 +70,7 @@ export const MOCK_APPLICATIONS: WorkerApplication[] = [
   },
   {
     id: 'app-003',
+    worker_id: 'worker-002',
     full_name: 'Sofia Reyes',
     email: 'sofia.r@email.com',
     phone: '+1 555 800 4455',
@@ -84,6 +88,7 @@ export const MOCK_APPLICATIONS: WorkerApplication[] = [
   },
   {
     id: 'app-004',
+    worker_id: null,
     full_name: 'Kwame Boateng',
     email: 'k.boateng@email.com',
     phone: '+1 555 123 4567',
@@ -101,6 +106,7 @@ export const MOCK_APPLICATIONS: WorkerApplication[] = [
   },
   {
     id: 'app-005',
+    worker_id: null,
     full_name: 'Marcus Webb',
     email: 'marcus.w@email.com',
     phone: '+1 555 901 2233',

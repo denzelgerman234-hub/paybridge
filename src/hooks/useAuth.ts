@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, supabaseConfig } from '../lib/supabase';
-import { localDb } from '../lib/localDb';
 import { useAppStore } from '../stores/appStore';
 
 /** Error thrown when the user's email has not yet been confirmed. */
@@ -26,10 +25,7 @@ function authRedirectUrl() {
   return `${window.location.origin}/auth/callback`;
 }
 
-function isPlaceholderName(name?: string | null) {
-  const normalized = name?.trim().toLowerCase();
-  return !normalized || normalized === 'new worker';
-}
+
 
 export function useAuth() {
   const {
@@ -77,7 +73,7 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function fetchProfile(userId: string, email?: string | null) {
+  async function fetchProfile(userId: string, _email?: string | null) {
     const { data, error } = await supabase
       .from('worker_profiles')
       .select('*')
@@ -89,33 +85,7 @@ export function useAuth() {
     }
 
     if (data && !error) {
-      let nextProfile = data as any;
-      const application = localDb.getWorkerApplicationForUser(userId, email);
-
-      if (application && isPlaceholderName(nextProfile.full_name)) {
-        nextProfile = {
-          ...nextProfile,
-          full_name: application.full_name,
-          phone: nextProfile.phone || application.phone,
-          country: nextProfile.country || application.country,
-        };
-
-        const { error: repairError } = await supabase
-          .from('worker_profiles')
-          .update({
-            full_name: nextProfile.full_name,
-            phone: nextProfile.phone,
-            country: nextProfile.country,
-          })
-          .eq('id', userId);
-
-        if (repairError) {
-          console.warn('[paybridge] Could not repair placeholder worker profile', repairError);
-        }
-      }
-
-      localDb.ensureWorker(nextProfile, email);
-      setProfile(nextProfile);
+      setProfile(data as any);
     }
     setLoading(false);
   }
@@ -126,15 +96,21 @@ export function useAuth() {
     if (error) {
       console.error('[paybridge] Supabase signInWithPassword failed', error);
       if (isUnconfirmedError(error)) {
-        // Store the email so login page can offer resend
         setPendingEmail(normalizedEmail);
         setEmailUnverified(true);
         throw new EmailNotConfirmedError();
       }
       throw error;
     }
-    const application = localDb.getWorkerApplicationForUser(null, normalizedEmail);
-    navigate(application && application.status !== 'approved' ? '/application-status' : '/dashboard');
+    // Check Supabase for application status to decide where to redirect
+    const { data: appRow } = await supabase
+      .from('worker_applications')
+      .select('status')
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const appStatus = (appRow as any)?.status;
+    navigate(appStatus && appStatus !== 'approved' ? '/application-status' : '/dashboard');
   }
 
   async function signUp(
@@ -143,6 +119,14 @@ export function useAuth() {
     fullName: string,
     phone: string,
     country: string,
+    applicationData?: {
+      city: string;
+      occupation: string;
+      why: string;
+      bank: string;
+      methods: string[];
+      notes?: string;
+    },
   ) {
     const normalizedEmail = email.trim().toLowerCase();
     const redirectTo = authRedirectUrl();
@@ -165,6 +149,15 @@ export function useAuth() {
           full_name: fullName.trim(),
           phone: phone.trim(),
           country,
+          // Application fields — picked up by handle_new_user() trigger
+          ...(applicationData ? {
+            city: applicationData.city,
+            occupation: applicationData.occupation,
+            why: applicationData.why,
+            bank: applicationData.bank,
+            methods: applicationData.methods,
+            app_notes: applicationData.notes ?? null,
+          } : {}),
         },
       },
     });
@@ -184,7 +177,6 @@ export function useAuth() {
       throw new Error('Supabase did not return a user for this signup request. Check the browser Network tab and Supabase Auth logs.');
     }
 
-    // Store the email so the verify-email page can display and resend to it.
     setPendingEmail(normalizedEmail);
     setEmailUnverified(true);
     if (typeof window !== 'undefined') localStorage.setItem('pb_pending_email', normalizedEmail);

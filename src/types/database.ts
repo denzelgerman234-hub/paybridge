@@ -337,4 +337,26 @@ export interface WorkerSignedDocument {
   w9_tax_id_last4?: string | null;
 }
 
+export type WorkerApplicationStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
+
+export interface WorkerApplication {
+  id: string;
+  worker_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string;
+  country: string;
+  city: string;
+  occupation: string;
+  why: string;
+  bank: string;
+  methods: string[];
+  status: WorkerApplicationStatus;
+  submitted_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
 

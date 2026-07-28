@@ -2,7 +2,6 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircle, ChevronRight, FileText, Globe, Lock, Mail, Phone, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { localDb } from '../lib/localDb';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -70,20 +69,24 @@ export function ApplyPage() {
     setError('');
     setLoading(true);
     try {
-      const workerId = await signUp(form.email, form.password, form.full_name, form.phone, form.country);
-      localDb.submitWorkerApplication({
-        worker_id: workerId,
-        full_name: form.full_name.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.phone.trim(),
-        country: form.country,
-        city: form.city.trim(),
-        occupation: form.occupation,
-        why: form.why.trim(),
-        bank: form.banks[0],
-        methods: form.methods,
-        notes: `Available banks: ${form.banks.join(', ')}. Dedicated accounts estimate: ${form.account_count}.`,
-      });
+      // All application fields are passed as user_metadata so the
+      // handle_new_user() DB trigger can create the worker_applications row
+      // without needing a live session or anonymous insert access.
+      await signUp(
+        form.email,
+        form.password,
+        form.full_name,
+        form.phone,
+        form.country,
+        {
+          city: form.city.trim(),
+          occupation: form.occupation,
+          why: form.why.trim(),
+          bank: form.banks[0] ?? '',
+          methods: form.methods,
+          notes: `Available banks: ${form.banks.join(', ')}. Dedicated accounts: ${form.account_count}.`,
+        },
+      );
       toast.success('Application submitted. Verify your email to continue.');
     } catch (err: any) {
       setError(friendlyApplyError(err));

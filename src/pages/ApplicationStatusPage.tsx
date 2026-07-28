@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, CheckCircle, Clock, Mail, RefreshCw, XCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { WorkerApplication } from '../lib/adminMockData';
-import { localDb } from '../lib/localDb';
+import { getMyApplication } from '../lib/applicationData';
+import type { WorkerApplication } from '../types/database';
 import { formatDate } from '../lib/utils';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -47,20 +47,22 @@ const statusConfig = {
 
 export function ApplicationStatusPage() {
   const { profile, isLoading, signOut } = useAuth();
-  const [application, setApplication] = useState<WorkerApplication | null>(() =>
-    localDb.getWorkerApplicationForUser(profile?.id),
-  );
+  const [application, setApplication] = useState<WorkerApplication | null>(null);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    function refresh() {
-      setApplication(localDb.getWorkerApplicationForUser(profile?.id));
-    }
-
-    refresh();
-    return localDb.subscribe(refresh);
+    let cancelled = false;
+    setFetching(true);
+    getMyApplication().then(data => {
+      if (!cancelled) {
+        setApplication(data);
+        setFetching(false);
+      }
+    });
+    return () => { cancelled = true; };
   }, [profile?.id]);
 
-  if (isLoading) return null;
+  if (isLoading || fetching) return null;
 
   if (!application) {
     return (

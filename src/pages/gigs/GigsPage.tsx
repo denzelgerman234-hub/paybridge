@@ -5,6 +5,7 @@ import { useGigs } from '../../hooks/useGigs';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { GigListAvailable } from './GigListAvailable';
 import { GigListActive } from './GigListActive';
+import { isActiveWorkerGig, isAvailableGig } from '../../lib/gigFilters';
 
 const CREAM = '#F1F0DA';
 const DIM = 'rgba(241,240,218,0.45)';
@@ -24,8 +25,8 @@ export function GigsPage({ tab }: GigsPageProps) {
 
   if (loading) return <LoadingSpinner text="Loading gigs..." />;
 
-  const availableCount = gigs.filter(gig => gig.status === 'open').length;
-  const activeCount = gigs.filter(gig => gig.worker_id === profile?.id && ['accepted', 'funded', 'in_progress'].includes(gig.status)).length;
+  const availableCount = gigs.filter(gig => isAvailableGig(gig, profile?.id)).length;
+  const activeCount = gigs.filter(gig => isActiveWorkerGig(gig, profile?.id)).length;
 
   const tabs = [
     {
@@ -96,3 +97,6 @@ export function GigsPage({ tab }: GigsPageProps) {
     </div>
   );
 }
+
+
+

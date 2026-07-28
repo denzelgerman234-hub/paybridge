@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { BadgeIcon } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatCurrency, formatRelativeTime } from '../../lib/utils';
+import { isAvailableGig } from '../../lib/gigFilters';
 import { Link } from 'react-router-dom';
 import { RiSearchLine, RiBriefcaseLine, RiArrowRightLine } from 'react-icons/ri';
 import { useState } from 'react';
@@ -26,7 +27,7 @@ export function GigListAvailable({ showHeader = true }: GigListAvailableProps) {
   if (loading) return <LoadingSpinner text="Loading gigs..." />;
 
   const available = gigs
-    .filter(g => g.status === 'open')
+    .filter(g => isAvailableGig(g, profile?.id))
     .filter(g => !search || g.client_name.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -135,3 +136,6 @@ export function GigListAvailable({ showHeader = true }: GigListAvailableProps) {
     </div>
   );
 }
+
+
+

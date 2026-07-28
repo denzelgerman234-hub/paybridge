@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FundingBanner } from '../../components/ui/FundingBanner';
 import { formatCurrency, formatRelativeTime } from '../../lib/utils';
+import { isActiveWorkerGig } from '../../lib/gigFilters';
 import { Link } from 'react-router-dom';
 import { RiArrowRightLine, RiTimeLine, RiBriefcaseLine } from 'react-icons/ri';
 
@@ -20,7 +21,7 @@ export function GigListActive({ showHeader = true }: GigListActiveProps) {
   const { gigs, loading } = useGigs(profile?.id);
   if (loading) return <LoadingSpinner text="Loading active gigs..." />;
 
-  const active = gigs.filter(g => g.worker_id === profile?.id && ['accepted', 'funded', 'in_progress'].includes(g.status));
+  const active = gigs.filter(g => isActiveWorkerGig(g, profile?.id));
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -91,3 +92,6 @@ export function GigListActive({ showHeader = true }: GigListActiveProps) {
     </div>
   );
 }
+
+
+

@@ -156,7 +156,8 @@ export default function App() {
 
         {/* Protected dashboard */}
         <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route path="/application-status" element={<ApplicationStatusPage />} />`r`n          <Route path="/dashboard"      element={<DashboardPage />} />
+          <Route path="/application-status" element={<ApplicationStatusPage />} />
+          <Route path="/dashboard"      element={<DashboardPage />} />
           <Route path="/gigs"           element={<Navigate to="/gigs/available" replace />} />
           <Route path="/gigs/available" element={<GigsPage tab="available" />} />
           <Route path="/gigs/active"    element={<GigsPage tab="active" />} />
@@ -190,5 +191,6 @@ export default function App() {
     </>
   );
 }
+
 
 

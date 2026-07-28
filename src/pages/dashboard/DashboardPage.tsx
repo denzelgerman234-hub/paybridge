@@ -8,6 +8,7 @@ import { BADGE_TIERS } from '../../lib/constants';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FundingBanner } from '../../components/ui/FundingBanner';
 import { formatCurrency, formatRelativeTime } from '../../lib/utils';
+import { isActiveWorkerGig, isAvailableGig } from '../../lib/gigFilters';
 import { ChevronRight, ArrowRight } from 'lucide-react';
 import {
   RiBriefcaseLine,
@@ -32,6 +33,8 @@ const SAGE   = '#7DC99A';
 const BORDER = 'rgba(241,240,218,0.09)';
 const NAVY8  = '#12203F';
 
+
+
 export function DashboardPage() {
   const { profile, isLoading } = useAuth();
   const { gigs, loading: gigsLoading } = useGigs(profile?.id);
@@ -40,8 +43,8 @@ export function DashboardPage() {
   if (isLoading || gigsLoading) return <LoadingSpinner text="Loading dashboard..." />;
   if (!profile) return null;
 
-  const activeGigs = gigs.filter(g => ['accepted', 'funded', 'in_progress'].includes(g.status));
-  const openGigs   = gigs.filter(g => g.status === 'open');
+  const activeGigs = gigs.filter(g => isActiveWorkerGig(g, profile.id));
+  const openGigs   = gigs.filter(g => isAvailableGig(g, profile.id));
   const primaryGig = activeGigs[0];
 
   const stats = [
@@ -228,4 +231,6 @@ export function DashboardPage() {
     </div>
   );
 }
+
+
 

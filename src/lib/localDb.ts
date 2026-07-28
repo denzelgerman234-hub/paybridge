@@ -430,6 +430,14 @@ function addAdminNotification(state: LocalDbState, event: Omit<AdminNotification
 
 function ensureThread(state: LocalDbState, gig: WorkerGig, workerId: string, specialistName = 'Jordan Lee') {
   let thread = state.operation_threads.find(t => t.gig_id === gig.id && t.worker_id === workerId);
+  const existingThread = thread ?? state.operation_threads.find(t => t.gig_id === gig.id) ?? null;
+  if (!thread && existingThread) {
+    thread = existingThread;
+    thread.worker_id = workerId;
+    thread.specialist_name = specialistName;
+    thread.status = 'open';
+    thread.updated_at = now();
+  }
   if (!thread) {
     thread = {
       id: id('thread'),
@@ -1120,7 +1128,7 @@ export const localDb = {
     return {
       gig,
       application: workerId ? state.gig_applications.find(a => a.gig_id === gig.id && a.worker_id === workerId) ?? null : null,
-      disbursements: state.worker_disbursements.filter(d => d.gig_id === gig.id && (!workerId || ['funding_confirmed', 'disbursement_in_progress', 'proof_rejected', 'awaiting_verification', 'verified_complete', 'settled'].includes(gig.funding_status ?? 'unfunded'))),
+      disbursements: state.worker_disbursements.filter(d => d.gig_id === gig.id && (!workerId || gig.funded || ['funded', 'funding_confirmed', 'disbursement_in_progress', 'proof_rejected', 'awaiting_verification', 'verified_complete', 'settled'].includes(gig.funding_status ?? 'unfunded'))),
       thread,
       messages: thread ? state.operation_messages.filter(m => m.thread_id === thread.id).sort((a, b) => a.created_at.localeCompare(b.created_at)) : [],
     };
@@ -1485,6 +1493,7 @@ export const localDb = {
     });
   },
 };
+
 
 
 

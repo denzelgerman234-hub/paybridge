@@ -45,6 +45,12 @@ export function AdminGigs() {
     return localDb.subscribe(refresh);
   }, []);
 
+  useEffect(() => {
+    if (showCreate && beneficiaries.length === 0) {
+      setBeneficiaries([emptyBeneficiary()]);
+    }
+  }, [showCreate, beneficiaries.length]);
+
   const filtered = gigs
     .filter(g => filter === 'all' || g.status === filter)
     .filter(g => !search || g.client_name.toLowerCase().includes(search.toLowerCase()));
@@ -113,7 +119,10 @@ export function AdminGigs() {
   }
 
   function removeBeneficiary(index: number) {
-    setBeneficiaries(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+    setBeneficiaries(prev => {
+      const next = prev.filter((_, itemIndex) => itemIndex !== index);
+      return next.length > 0 ? next : [emptyBeneficiary()];
+    });
   }
 
   const statuses = ['all', 'open', 'accepted', 'funded', 'in_progress', 'completed', 'cancelled'];
@@ -126,7 +135,7 @@ export function AdminGigs() {
           <h1 className="text-3xl font-black text-cream">Gig Management</h1>
           <p className="text-cream/50 mt-1">{gigs.length} total gigs - {gigs.filter(g=>!g.funded && g.status!=='completed').length} unfunded</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { if (beneficiaries.length === 0) setBeneficiaries([emptyBeneficiary()]); setShowCreate(true); }} className="btn-primary flex items-center gap-2">
           <RiAddLine size={16} /> Create Gig
         </button>
       </div>
@@ -398,6 +407,8 @@ export function AdminGigs() {
     </div>
   );
 }
+
+
 
 
 

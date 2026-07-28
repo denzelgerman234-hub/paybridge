@@ -53,19 +53,19 @@ export function AdminOperations() {
       </div>
 
       <div className="sticky top-14 z-20 -mx-5 px-5 py-2 backdrop-blur border-y border-cream/5 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0" style={{ background: 'rgba(11,19,47,0.95)' }}>
-        <div className="grid grid-cols-3 gap-2 lg:max-w-md">
-          {[['#rooms', 'Rooms'], ['#thread', 'Thread'], ['#beneficiaries', 'Beneficiaries']].map(([href, label]) => (
-            <a key={href} href={href} className="rounded border border-white/8 px-2 py-2 text-center text-xs font-bold uppercase tracking-wider text-cream/60 hover:border-gold/35 hover:text-gold">
+        <div className="flex gap-2 overflow-x-auto pb-1 lg:max-w-2xl">
+          {[["#rooms", "Rooms"], ["#thread", "Thread"], ["#beneficiaries", "Beneficiaries"]].map(([href, label]) => (
+            <a key={href} href={href} className="flex-shrink-0 whitespace-nowrap rounded-full border border-white/8 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-cream/60 hover:border-gold/35 hover:text-gold">
               {label}
             </a>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
-        <div className="card p-3"><p className="text-[11px] text-cream/50 leading-tight">Open Rooms</p><p className="text-xl font-black text-cream leading-none mt-1">{activeRooms}</p></div>
-        <div className="card p-3"><p className="text-[11px] text-cream/50 leading-tight">Messages</p><p className="text-xl font-black text-cream leading-none mt-1">{rooms.reduce((sum, room) => sum + room.messages.length, 0)}</p></div>
-        <div className="card p-3"><p className="text-[11px] text-cream/50 leading-tight">Proof Review</p><p className="text-xl font-black text-gold leading-none mt-1">{awaitingProof}</p></div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="card min-w-[112px] flex-1 px-3 py-2.5"><p className="text-[10px] text-cream/50 uppercase tracking-wide leading-none">Open Rooms</p><p className="mt-1 text-lg font-black text-cream leading-none">{activeRooms}</p></div>
+        <div className="card min-w-[112px] flex-1 px-3 py-2.5"><p className="text-[10px] text-cream/50 uppercase tracking-wide leading-none">Messages</p><p className="mt-1 text-lg font-black text-cream leading-none">{rooms.reduce((sum, room) => sum + room.messages.length, 0)}</p></div>
+        <div className="card min-w-[112px] flex-1 px-3 py-2.5"><p className="text-[10px] text-cream/50 uppercase tracking-wide leading-none">Proof Review</p><p className="mt-1 text-lg font-black text-gold leading-none">{awaitingProof}</p></div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[620px]">
@@ -167,5 +167,6 @@ export function AdminOperations() {
     </div>
   );
 }
+
 
 

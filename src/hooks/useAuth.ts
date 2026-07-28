@@ -34,11 +34,13 @@ export function useAuth() {
     isAuthenticated,
     isEmailUnverified,
     pendingEmail,
+    applicationStatus,
     setProfile,
     setLoading,
     setAuthenticated,
     setEmailUnverified,
     setPendingEmail,
+    setApplicationStatus,
   } = useAppStore();
   const navigate = useNavigate();
 
@@ -74,18 +76,20 @@ export function useAuth() {
   }, []);
 
   async function fetchProfile(userId: string, _email?: string | null) {
-    const { data, error } = await supabase
-      .from('worker_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const [profileRes, appRes] = await Promise.all([
+      supabase.from('worker_profiles').select('*').eq('id', userId).single(),
+      supabase.from('worker_applications').select('status').eq('worker_id', userId).order('submitted_at', { ascending: false }).limit(1).maybeSingle()
+    ]);
 
-    if (error) {
-      console.error('[paybridge] Failed to fetch worker profile', error);
+    if (profileRes.error) {
+      console.error('[paybridge] Failed to fetch worker profile', profileRes.error);
     }
 
-    if (data && !error) {
-      setProfile(data as any);
+    if (profileRes.data && !profileRes.error) {
+      setProfile(profileRes.data as any);
+      setApplicationStatus(appRes.data?.status ?? null);
+    } else {
+      setApplicationStatus(null);
     }
     setLoading(false);
   }
@@ -206,6 +210,7 @@ export function useAuth() {
 
   return {
     profile,
+    applicationStatus,
     isLoading,
     isAuthenticated,
     isEmailUnverified,

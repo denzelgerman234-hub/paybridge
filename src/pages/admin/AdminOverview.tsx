@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { localDb } from '../../lib/localDb';
+import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/utils';
 import {
   RiGroupLine, RiBriefcaseLine, RiMoneyDollarCircleLine, RiLineChartLine,
@@ -15,31 +15,80 @@ const TERRA  = '#C8523D';
 const BORDER = 'rgba(241,240,218,0.09)';
 const NAVY9  = '#0D1632';
 
+interface DashboardStats {
+  pendingApps: number;
+  totalWorkers: number;
+  activeWorkers: number;
+  openGigs: number;
+  activeGigs: number;
+  totalDisbursed: number;
+  totalWorkerFee: number;
+  unfundedGigsCount: number;
+  unfundedGigsAmount: number;
+  pendingWorkerFees: number;
+  warningWorkers: string[];
+  recentGigs: any[];
+}
+
 export function AdminOverview() {
-  const [state, setState] = useState(() => localDb.snapshot());
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const refresh = () => setState(localDb.snapshot());
-    refresh();
-    return localDb.subscribe(refresh);
+    async function fetchStats() {
+      try {
+        const [
+          { count: pendingApps },
+          { count: totalWorkers },
+          { count: activeWorkers },
+          { count: openGigs },
+          { count: activeGigs },
+          { data: disbs },
+          { data: fees },
+          { data: unfundedGigs },
+          { data: warningWorkers },
+          { data: recentGigs }
+        ] = await Promise.all([
+          supabase.from('worker_applications').select('id', { count: 'exact', head: true }).in('status', ['pending', 'in_review']),
+          supabase.from('worker_profiles').select('id', { count: 'exact', head: true }),
+          supabase.from('worker_profiles').select('id', { count: 'exact', head: true }).eq('onboarding_completed', true),
+          supabase.from('worker_gigs').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+          supabase.from('worker_gigs').select('id', { count: 'exact', head: true }).in('status', ['accepted', 'funded', 'in_progress']),
+          supabase.from('worker_disbursements').select('amount').eq('status', 'verified'),
+          supabase.from('commission_ledger').select('amount, status').in('status', ['earned', 'settled']),
+          supabase.from('worker_gigs').select('id, total_principal').in('status', ['accepted', 'in_progress']).eq('funded', false),
+          supabase.from('worker_profiles').select('full_name').neq('account_health', 'healthy'),
+          supabase.from('worker_gigs').select('*, worker_profiles(full_name)').order('created_at', { ascending: false }).limit(6)
+        ]);
+
+        const disbursedSum = (disbs || []).reduce((s: number, d: any) => s + Number(d.amount), 0);
+        const feesSum = (fees || []).reduce((s: number, f: any) => s + Number(f.amount), 0);
+        const pendingFeesSum = (fees || []).filter((f: any) => f.status === 'earned').reduce((s: number, f: any) => s + Number(f.amount), 0);
+        const unfundedAmount = (unfundedGigs || []).reduce((s: number, g: any) => s + Number(g.total_principal), 0);
+
+        setStats({
+          pendingApps: pendingApps || 0,
+          totalWorkers: totalWorkers || 0,
+          activeWorkers: activeWorkers || 0,
+          openGigs: openGigs || 0,
+          activeGigs: activeGigs || 0,
+          totalDisbursed: disbursedSum,
+          totalWorkerFee: feesSum,
+          unfundedGigsCount: unfundedGigs?.length || 0,
+          unfundedGigsAmount: unfundedAmount,
+          pendingWorkerFees: pendingFeesSum,
+          warningWorkers: (warningWorkers || []).map((w: any) => w.full_name),
+          recentGigs: recentGigs || []
+        });
+      } catch (err) {
+        console.error('Failed to load dashboard stats', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
   }, []);
-
-  const pendingApps     = state.gig_applications.filter(a => ['submitted', 'under_review'].includes(a.status)).length;
-  const totalWorkers    = state.workers.length;
-  const openGigs        = state.gigs.filter(g => g.status === 'open').length;
-  const activeGigs      = state.gigs.filter(g => ['accepted','funded','in_progress'].includes(g.status)).length;
-  const totalDisbursed  = state.worker_disbursements.filter(d => d.status === 'verified').reduce((s, d) => s + d.amount, 0);
-  const totalWorkerFee  = state.commission_ledger.filter(c => ['earned', 'settled'].includes(c.status)).reduce((s, c) => s + Number(c.amount), 0);
-  const unfundedGigs    = state.gigs.filter(g => ['accepted','in_progress'].includes(g.status) && !g.funded);
-  const warningWorkers  = state.workers.filter(w => w.account_health !== 'healthy');
-  const pendingWorkerFees = state.commission_ledger.filter(c => c.status === 'earned').reduce((s, c) => s + Number(c.amount), 0);
-
-  const stats = [
-    { label: 'Total Workers',        value: totalWorkers,                   sub: `${state.workers.filter(w=>w.onboarding_completed).length} active`, Icon: RiGroupLine,              accent: GOLD },
-    { label: 'Pending Applications', value: pendingApps,                    sub: 'Awaiting review',                                                     Icon: RiTimeLine,              accent: GOLD },
-    { label: 'Active Gigs',          value: activeGigs,                     sub: `${openGigs} open, unassigned`,                                        Icon: RiBriefcaseLine,         accent: SAGE },
-    { label: 'Total Disbursed',      value: formatCurrency(totalDisbursed), sub: 'All-time completed',                                                  Icon: RiMoneyDollarCircleLine, accent: GOLD },
-  ];
 
   const AlertCard = ({ color, Icon, title, sub, to, linkLabel }: {
     color: string; Icon: React.ElementType; title: string; sub: string; to: string; linkLabel: string;
@@ -58,6 +107,19 @@ export function AdminOverview() {
     </div>
   );
 
+  if (loading) {
+    return <div className="p-10 text-center text-cream/50 animate-fade-in">Loading dashboard...</div>;
+  }
+
+  if (!stats) return null;
+
+  const statCards = [
+    { label: 'Total Workers',        value: stats.totalWorkers,                   sub: `${stats.activeWorkers} active`, Icon: RiGroupLine,              accent: GOLD },
+    { label: 'Pending Applications', value: stats.pendingApps,                    sub: 'Awaiting review',               Icon: RiTimeLine,              accent: GOLD },
+    { label: 'Active Gigs',          value: stats.activeGigs,                     sub: `${stats.openGigs} open, unassigned`, Icon: RiBriefcaseLine,         accent: SAGE },
+    { label: 'Total Disbursed',      value: formatCurrency(stats.totalDisbursed), sub: 'All-time completed',            Icon: RiMoneyDollarCircleLine, accent: GOLD },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -68,7 +130,7 @@ export function AdminOverview() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {stats.map(({ label, value, sub, Icon, accent }) => (
+        {statCards.map(({ label, value, sub, Icon, accent }) => (
           <div key={label} className="stat-card p-5">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-8 h-8 flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(241,240,218,0.06)', borderRadius: 4 }}>
@@ -83,16 +145,16 @@ export function AdminOverview() {
       </div>
 
       {/* Alert cards */}
-      {(pendingApps > 0 || unfundedGigs.length > 0 || warningWorkers.length > 0) && (
+      {(stats.pendingApps > 0 || stats.unfundedGigsCount > 0 || stats.warningWorkers.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {pendingApps > 0 && (
-            <AlertCard color={GOLD} Icon={RiTimeLine} title={`${pendingApps} Applications Pending`} sub="Require review and decision" to="/admin/applications" linkLabel="Review Now" />
+          {stats.pendingApps > 0 && (
+            <AlertCard color={GOLD} Icon={RiTimeLine} title={`${stats.pendingApps} Applications Pending`} sub="Require review and decision" to="/admin/applications" linkLabel="Review Now" />
           )}
-          {unfundedGigs.length > 0 && (
-            <AlertCard color={TERRA} Icon={RiAlertLine} title={`${unfundedGigs.length} Gig${unfundedGigs.length > 1 ? 's' : ''} Not Funded`} sub="Workers cannot disburse until funded" to="/admin/gigs" linkLabel="Fund Gigs" />
+          {stats.unfundedGigsCount > 0 && (
+            <AlertCard color={TERRA} Icon={RiAlertLine} title={`${stats.unfundedGigsCount} Gig${stats.unfundedGigsCount > 1 ? 's' : ''} Not Funded`} sub="Workers cannot disburse until funded" to="/admin/gigs" linkLabel="Fund Gigs" />
           )}
-          {warningWorkers.length > 0 && (
-            <AlertCard color={GOLD} Icon={RiAlertLine} title={`${warningWorkers.length} Account${warningWorkers.length > 1 ? 's' : ''} Flagged`} sub={warningWorkers.map(w => w.full_name).join(', ')} to="/admin/workers" linkLabel="Review Workers" />
+          {stats.warningWorkers.length > 0 && (
+            <AlertCard color={GOLD} Icon={RiAlertLine} title={`${stats.warningWorkers.length} Account${stats.warningWorkers.length > 1 ? 's' : ''} Flagged`} sub={stats.warningWorkers.join(', ')} to="/admin/workers" linkLabel="Review Workers" />
           )}
         </div>
       )}
@@ -115,33 +177,32 @@ export function AdminOverview() {
               </tr>
             </thead>
             <tbody>
-              {state.gigs.slice(0, 6).map(gig => {
-                const worker = state.workers.find(w => w.id === gig.worker_id);
-                return (
-                  <tr key={gig.id} className="table-row">
-                    <td className="table-cell">
-                      <p className="font-semibold text-xs" style={{ color: CREAM, fontFamily: "'Space Grotesk', sans-serif" }}>{gig.client_name}</p>
-                      <p className="text-xs" style={{ color: DIM }}>{gig.client_contact}</p>
-                    </td>
-                    <td className="table-cell text-xs" style={{ color: DIM }}>
-                      {worker ? worker.full_name : <span style={{ color: GOLD }} className="font-bold text-xs">Unassigned</span>}
-                    </td>
-                    <td className="table-cell font-bold text-xs" style={{ color: CREAM }}>{formatCurrency(gig.total_principal)}</td>
-                    <td className="table-cell font-bold text-xs" style={{ color: GOLD }}>{formatCurrency(gig.commission_amount)}</td>
-                    <td className="table-cell"><span className={`status-${gig.status}`}>{gig.status.replace(/_/g, ' ')}</span></td>
-                    <td className="table-cell">
-                      {gig.funded
-                        ? <span className="flex items-center gap-1 text-xs font-bold" style={{ color: SAGE }}><RiCheckboxCircleLine /> Funded</span>
-                        : <span className="flex items-center gap-1 text-xs font-bold" style={{ color: GOLD }}><RiTimeLine /> Pending</span>}
-                    </td>
-                    <td className="table-cell">
-                      <Link to="/admin/gigs" className="text-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>
-                        Manage <RiArrowRightLine />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
+              {stats.recentGigs.length === 0 ? (
+                 <tr><td colSpan={7} className="px-5 py-10 text-center text-cream/50">No recent gigs</td></tr>
+              ) : stats.recentGigs.map(gig => (
+                <tr key={gig.id} className="table-row">
+                  <td className="table-cell">
+                    <p className="font-semibold text-xs" style={{ color: CREAM, fontFamily: "'Space Grotesk', sans-serif" }}>{gig.client_name}</p>
+                    <p className="text-xs" style={{ color: DIM }}>{gig.client_contact}</p>
+                  </td>
+                  <td className="table-cell text-xs" style={{ color: DIM }}>
+                    {gig.worker_profiles?.full_name ? gig.worker_profiles.full_name : <span style={{ color: GOLD }} className="font-bold text-xs">Unassigned</span>}
+                  </td>
+                  <td className="table-cell font-bold text-xs" style={{ color: CREAM }}>{formatCurrency(gig.total_principal)}</td>
+                  <td className="table-cell font-bold text-xs" style={{ color: GOLD }}>{formatCurrency(gig.commission_amount)}</td>
+                  <td className="table-cell"><span className={`status-${gig.status}`}>{gig.status.replace(/_/g, ' ')}</span></td>
+                  <td className="table-cell">
+                    {gig.funded
+                      ? <span className="flex items-center gap-1 text-xs font-bold" style={{ color: SAGE }}><RiCheckboxCircleLine /> Funded</span>
+                      : <span className="flex items-center gap-1 text-xs font-bold" style={{ color: GOLD }}><RiTimeLine /> Pending</span>}
+                  </td>
+                  <td className="table-cell">
+                    <Link to="/admin/gigs" className="text-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>
+                      Manage <RiArrowRightLine />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -155,10 +216,10 @@ export function AdminOverview() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
           {[
-            { label: 'Total Principal Disbursed', value: formatCurrency(totalDisbursed),   accent: CREAM },
-            { label: 'Total Worker Fees Settled',    value: formatCurrency(totalWorkerFee),  accent: GOLD  },
-            { label: 'Open Principal (unfunded)', value: formatCurrency(state.gigs.filter(g=>!g.funded).reduce((s,g)=>s+g.total_principal,0)), accent: GOLD },
-            { label: 'Pending Worker Fees',       value: formatCurrency(pendingWorkerFees), accent: GOLD },
+            { label: 'Total Principal Disbursed', value: formatCurrency(stats.totalDisbursed),   accent: CREAM },
+            { label: 'Total Worker Fees Settled',    value: formatCurrency(stats.totalWorkerFee),  accent: GOLD  },
+            { label: 'Open Principal (unfunded)', value: formatCurrency(stats.unfundedGigsAmount), accent: GOLD },
+            { label: 'Pending Worker Fees',       value: formatCurrency(stats.pendingWorkerFees), accent: GOLD },
           ].map(({ label, value, accent }) => (
             <div key={label}>
               <p className="label-caps mb-1">{label}</p>

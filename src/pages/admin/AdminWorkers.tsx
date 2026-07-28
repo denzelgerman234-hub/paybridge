@@ -1,93 +1,69 @@
 import { useEffect, useState } from 'react';
 import { RiSearchLine, RiStarLine, RiShieldCrossLine, RiShieldCheckLine, RiLineChartLine, RiCloseLine, RiEyeLine } from 'react-icons/ri';
-import { localDb, LocalWorkerSummary } from '../../lib/localDb';
-import { AccountHealthStatus, BadgeTier } from '../../types/database';
+import { supabase } from '../../lib/supabase';
+import type { WorkerProfile, AccountHealthStatus, BadgeTier, WorkerApplication } from '../../types/database';
 import { BADGE_TIERS } from '../../lib/constants';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 import { BadgeIcon } from '../../components/ui/Badge';
 
-type LocalDbSnapshot = ReturnType<typeof localDb.snapshot>;
-
-type AdminWorkerRow = LocalWorkerSummary & {
-  phone: string | null;
-  country: string | null;
-  total_gigs_completed: number;
-  total_disbursed: number;
-  total_earned: number;
-  rating: number | null;
-  created_at: string | null;
-  updated_at: string;
+type AdminWorkerRow = WorkerProfile & {
+  email: string | null;
 };
 
-function earliestDate(dates: Array<string | null | undefined>) {
-  const sorted = dates.filter(Boolean).sort((a, b) => new Date(a!).getTime() - new Date(b!).getTime());
-  return sorted[0] ?? null;
-}
-
-function latestDate(dates: Array<string | null | undefined>) {
-  const sorted = dates.filter(Boolean).sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
-  return sorted[0] ?? null;
-}
-
-function buildWorkerRows(state: LocalDbSnapshot): AdminWorkerRow[] {
-  return state.workers
-    .map(worker => {
-      const workerGigs = state.gigs.filter(gig => gig.worker_id === worker.id);
-      const completedGigs = workerGigs.filter(gig => gig.status === 'completed');
-      const workerDisbursements = state.worker_disbursements.filter(item => item.worker_id === worker.id);
-      const sentDisbursements = workerDisbursements.filter(item => item.status === 'sent' || item.status === 'verified');
-      const workerCommissions = state.commission_ledger.filter(item => item.worker_id === worker.id);
-      const earnedGigIds = new Set(workerCommissions.map(item => item.gig_id));
-      const estimatedEarned = completedGigs
-        .filter(gig => !earnedGigIds.has(gig.id))
-        .reduce((sum, gig) => sum + gig.commission_amount, 0);
-      const createdAt = earliestDate([
-        ...workerGigs.map(gig => gig.accepted_at ?? gig.created_at),
-        ...state.gig_applications.filter(app => app.worker_id === worker.id).map(app => app.submitted_at),
-        ...workerDisbursements.map(item => item.created_at),
-        ...state.audit_events.filter(event => event.worker_id === worker.id).map(event => event.created_at),
-      ]);
-
-      return {
-        ...worker,
-        phone: null,
-        country: null,
-        total_gigs_completed: completedGigs.length,
-        total_disbursed: sentDisbursements.reduce((sum, item) => sum + item.amount, 0),
-        total_earned: workerCommissions.reduce((sum, item) => sum + item.amount, 0) + estimatedEarned,
-        rating: completedGigs.length > 0 ? 5 : null,
-        created_at: createdAt,
-        updated_at: latestDate(workerGigs.map(gig => gig.updated_at)) ?? createdAt ?? new Date().toISOString(),
-      };
-    })
-    .sort((a, b) => a.full_name.localeCompare(b.full_name));
-}
-
 export function AdminWorkers() {
-  const [state, setState] = useState(() => localDb.snapshot());
+  const [workers, setWorkers] = useState<AdminWorkerRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  async function fetchWorkers() {
+    const [profilesRes, appsRes] = await Promise.all([
+      supabase.from('worker_profiles').select('*').order('full_name'),
+      supabase.from('worker_applications').select('worker_id, email'),
+    ]);
+
+    if (profilesRes.error) {
+      toast.error('Failed to load workers');
+      return;
+    }
+
+    const appsByWorker = new Map((appsRes.data || []).filter((a: any) => a.worker_id).map((a: any) => [a.worker_id, a.email]));
+
+    const mapped = (profilesRes.data || []).map((p: any) => ({
+      ...p,
+      email: appsByWorker.get(p.id) || null,
+    }));
+
+    setWorkers(mapped);
+  }
+
   useEffect(() => {
-    const refresh = () => setState(localDb.snapshot());
-    refresh();
-    return localDb.subscribe(refresh);
+    setLoading(true);
+    fetchWorkers().finally(() => setLoading(false));
   }, []);
 
-  const workers = buildWorkerRows(state);
   const selected = selectedId ? workers.find(worker => worker.id === selectedId) ?? null : null;
   const filtered = workers.filter(w =>
-    !search || w.full_name.toLowerCase().includes(search.toLowerCase()) || w.email.toLowerCase().includes(search.toLowerCase())
+    !search || w.full_name.toLowerCase().includes(search.toLowerCase()) || (w.email && w.email.toLowerCase().includes(search.toLowerCase()))
   );
 
-  function updateWorker(id: string, fields: Partial<Pick<AdminWorkerRow, 'badge' | 'account_health'>>) {
+  async function updateWorker(id: string, fields: Partial<Pick<AdminWorkerRow, 'badge' | 'account_health'>>) {
     try {
-      localDb.updateWorkerAdminFields(id, fields as Partial<Pick<LocalWorkerSummary, 'badge' | 'account_health'>>);
-      setState(localDb.snapshot());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Worker update failed');
+      const { error } = await supabase
+        .from('worker_profiles')
+        .update(fields)
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      // Optimistic update
+      setWorkers(curr => curr.map(w => w.id === id ? { ...w, ...fields } : w));
+    } catch (error: any) {
+      toast.error(error?.message || 'Worker update failed');
+      // Revert on failure
+      fetchWorkers();
     }
   }
 
@@ -128,16 +104,17 @@ export function AdminWorkers() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {loading ? (
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-cream/50">Loading workers...</td></tr>
+              ) : filtered.length === 0 ? (
                 <tr><td colSpan={8} className="px-5 py-10 text-center text-cream/50">No workers found</td></tr>
-              )}
-              {filtered.map(w => (
+              ) : filtered.map(w => (
                 <tr key={w.id} className="border-b hover:bg-white/3 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0"
                         style={{ background: 'linear-gradient(135deg,#C9A84C,#d946ef)' }}>
-                        {w.full_name[0]}
+                        {w.full_name[0] ?? '?'}
                       </div>
                       <div>
                         <p className="font-semibold text-cream">{w.full_name}</p>
@@ -191,7 +168,7 @@ export function AdminWorkers() {
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded flex items-center justify-center font-black text-xl text-white"
                   style={{ background: 'linear-gradient(135deg,#C9A84C,#d946ef)' }}>
-                  {selected.full_name[0]}
+                  {selected.full_name[0] ?? '?'}
                 </div>
                 <div>
                   <p className="font-bold text-cream">{selected.full_name}</p>
@@ -216,8 +193,8 @@ export function AdminWorkers() {
 
               <div className="space-y-2 text-sm">
                 {[
-                  ['Phone', selected.phone ?? 'Not provided'],
-                  ['Country', selected.country ?? 'Not provided'],
+                  ['Phone', selected.phone || 'Not provided'],
+                  ['Country', selected.country || 'Not provided'],
                   ['Health', selected.account_health],
                   ['Joined', selected.created_at ? formatDate(selected.created_at) : 'Not available'],
                 ].map(([label, value]) => (
@@ -243,4 +220,3 @@ export function AdminWorkers() {
     </div>
   );
 }
-

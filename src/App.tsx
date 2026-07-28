@@ -58,18 +58,16 @@ import { AdminOperations }   from './pages/admin/AdminOperations';
 import { AdminCommissions }  from './pages/admin/AdminCommissions';
 import { AdminCompliance }   from './pages/admin/AdminCompliance';
 import { useAdminStore }     from './stores/adminStore';
-import { localDb }           from './lib/localDb';
 
 // Route guards
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, profile } = useAuth();
+  const { isAuthenticated, isLoading, applicationStatus } = useAuth();
   const location = useLocation();
   if (isLoading) return <LoadingSpinner text="Checking authentication..." />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const application = localDb.getWorkerApplicationForUser(profile?.id);
-  if (application && application.status !== 'approved' && location.pathname !== '/application-status') {
+  if (applicationStatus && applicationStatus !== 'approved' && location.pathname !== '/application-status') {
     return <Navigate to="/application-status" replace />;
   }
 

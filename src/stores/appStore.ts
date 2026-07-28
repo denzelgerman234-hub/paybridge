@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { WorkerProfile, BadgeTier } from '../types/database';
+import { WorkerProfile, BadgeTier, WorkerApplicationStatus } from '../types/database';
 
 interface AppState {
   profile: WorkerProfile | null;
@@ -9,11 +9,14 @@ interface AppState {
   isEmailUnverified: boolean;
   /** Email stored during signup so the verify-email page can display / resend to it. */
   pendingEmail: string;
+  /** Status of the worker's own application from worker_applications. */
+  applicationStatus: WorkerApplicationStatus | null;
   setProfile: (profile: WorkerProfile | null) => void;
   setLoading: (loading: boolean) => void;
   setAuthenticated: (auth: boolean) => void;
   setEmailUnverified: (unverified: boolean) => void;
   setPendingEmail: (email: string) => void;
+  setApplicationStatus: (status: WorkerApplicationStatus | null) => void;
   updateBadge: (badge: BadgeTier) => void;
   updateOnboardingStep: (step: WorkerProfile['onboarding_step'], completed?: boolean) => void;
   addCompletedGig: () => void;
@@ -27,11 +30,13 @@ export const useAppStore = create<AppState>((set) => ({
   isAuthenticated: false,
   isEmailUnverified: false,
   pendingEmail: '',
+  applicationStatus: null,
   setProfile: (profile) => set({ profile }),
   setLoading: (isLoading) => set({ isLoading }),
   setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
   setEmailUnverified: (isEmailUnverified) => set({ isEmailUnverified }),
   setPendingEmail: (pendingEmail) => set({ pendingEmail }),
+  setApplicationStatus: (applicationStatus) => set({ applicationStatus }),
   updateBadge: (badge) =>
     set((state) => ({
       profile: state.profile ? { ...state.profile, badge } : null,

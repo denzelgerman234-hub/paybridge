@@ -26,6 +26,11 @@ function authRedirectUrl() {
   return `${window.location.origin}/auth/callback`;
 }
 
+function isPlaceholderName(name?: string | null) {
+  const normalized = name?.trim().toLowerCase();
+  return !normalized || normalized === 'new worker';
+}
+
 export function useAuth() {
   const {
     profile,
@@ -84,8 +89,33 @@ export function useAuth() {
     }
 
     if (data && !error) {
-      localDb.ensureWorker(data as any, email);
-      setProfile(data as any);
+      let nextProfile = data as any;
+      const application = localDb.getWorkerApplicationForUser(userId, email);
+
+      if (application && isPlaceholderName(nextProfile.full_name)) {
+        nextProfile = {
+          ...nextProfile,
+          full_name: application.full_name,
+          phone: nextProfile.phone || application.phone,
+          country: nextProfile.country || application.country,
+        };
+
+        const { error: repairError } = await supabase
+          .from('worker_profiles')
+          .update({
+            full_name: nextProfile.full_name,
+            phone: nextProfile.phone,
+            country: nextProfile.country,
+          })
+          .eq('id', userId);
+
+        if (repairError) {
+          console.warn('[paybridge] Could not repair placeholder worker profile', repairError);
+        }
+      }
+
+      localDb.ensureWorker(nextProfile, email);
+      setProfile(nextProfile);
     }
     setLoading(false);
   }
@@ -194,5 +224,7 @@ export function useAuth() {
     resendVerification,
   };
 }
+
+
 
 

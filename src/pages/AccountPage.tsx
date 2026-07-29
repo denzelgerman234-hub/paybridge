@@ -341,6 +341,7 @@ export function AccountPage() {
         const { data, error } = await supabase.auth.mfa.enroll({
           factorType: 'totp',
           friendlyName: 'PayBridge Worker App',
+          issuer: 'Paybridge',
         });
         if (error) throw error;
         setTwoFactorSetup({

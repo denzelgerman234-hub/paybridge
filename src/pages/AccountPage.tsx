@@ -173,8 +173,25 @@ export function AccountPage() {
           listWorkerSignedDocuments(workerId),
         ]);
         if (!active) return;
+
+        // Sync local DB with actual Supabase MFA state (source of truth)
+        let resolvedSecurity = security;
+        if (supabase.auth?.mfa?.listFactors) {
+          const { data: mfaFactors } = await supabase.auth.mfa.listFactors();
+          const hasVerifiedFactor = (mfaFactors?.all ?? []).some(
+            (f: { status: string }) => f.status === 'verified'
+          );
+          const localSaysEnabled = Boolean(security?.two_factor_enabled);
+          if (hasVerifiedFactor !== localSaysEnabled) {
+            // Sync the DB to match reality
+            await setWorkerTwoFactorEnabled(workerId, hasVerifiedFactor);
+            resolvedSecurity = await getWorkerSecuritySetting(workerId);
+          }
+        }
+
+        if (!active) return;
         setNotificationPreferences(preferences);
-        setSecuritySetting(security);
+        setSecuritySetting(resolvedSecurity);
         setKycSubmission(latestKyc);
         setSignedDocuments(documents);
       } catch (error) {
@@ -334,9 +351,9 @@ export function AccountPage() {
     try {
       if (supabase.auth?.mfa?.enroll) {
         const { data: factors } = await supabase.auth.mfa.listFactors();
-        const existing = factors?.all?.find((f: any) => f.friendly_name === 'PayBridge Worker App' && f.status === 'unverified');
-        if (existing) {
-          await supabase.auth.mfa.unenroll({ factorId: existing.id });
+        // Unenroll ALL existing factors (verified or not) before re-enrolling
+        for (const f of (factors?.all ?? [])) {
+          await supabase.auth.mfa.unenroll({ factorId: (f as { id: string }).id });
         }
 
         const { data, error } = await supabase.auth.mfa.enroll({

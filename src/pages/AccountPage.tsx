@@ -332,6 +332,12 @@ export function AccountPage() {
     setEnrollingTwoFactor(true);
     try {
       if (supabase.auth?.mfa?.enroll) {
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const existing = factors?.all?.find((f: any) => f.friendly_name === 'PayBridge Worker App' && f.status === 'unverified');
+        if (existing) {
+          await supabase.auth.mfa.unenroll({ factorId: existing.id });
+        }
+
         const { data, error } = await supabase.auth.mfa.enroll({
           factorType: 'totp',
           friendlyName: 'PayBridge Worker App',

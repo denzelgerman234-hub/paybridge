@@ -43,7 +43,7 @@ export function HeroSection() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-5 pt-20 pb-12 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-        <div className="order-2 md:order-1">
+        <div>
         {/* Eyebrow */}
         <div className="flex items-center gap-2.5 mb-5 animate-fade-in">
           <div className="w-4 h-px" style={{ background: GOLD }} />
@@ -88,7 +88,7 @@ export function HeroSection() {
         </div>
         
         {/* Right side illustration */}
-        <div className="order-1 md:order-2 flex justify-center animate-fade-in relative mb-8 md:mb-0">
+        <div className="flex justify-center animate-fade-in relative mb-8 md:mb-0">
            <img src="/images/hero.png" alt="PayBridge Worker Illustration" className="w-full max-w-[20rem] sm:max-w-sm md:max-w-md drop-shadow-2xl hover:scale-105 transition-transform duration-500" />
         </div>
         

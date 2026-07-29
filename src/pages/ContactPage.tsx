@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import toast from 'react-hot-toast';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import { ComplianceBadges } from '../components/landing/ComplianceBadges';
 
 export function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -32,19 +33,19 @@ export function ContactPage() {
         {/* Contact info */}
         <div className="space-y-4">
           {[
-            { icon: Mail,  label: 'General Support', value: 'assistance.paybridge@outlook.com' },
-            { icon: Mail,  label: 'Compliance',       value: 'compliance.paybridge@outlook.com' },
-            { icon: Mail,  label: 'Applications',     value: 'apply.paybridge@outlook.com' },
-            { icon: MapPin, label: 'Mailing Address',  value: 'PayBridge LLC\nP.O. Box 12345\nDelaware, USA' },
+            { icon: Mail, label: 'General Support', value: 'assistance.paybridge@outlook.com' },
+            { icon: Mail, label: 'Compliance', value: 'compliance.paybridge@outlook.com' },
+            { icon: Mail, label: 'Applications', value: 'apply.paybridge@outlook.com' },
+            { icon: MapPin, label: 'Mailing Address', value: 'PayBridge LLC\nP.O. Box 12345\nDelaware, USA' },
           ].map(({ icon: Icon, label, value }) => (
             <Card key={label} padding="md">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,168,76,0.15)' }}>
                   <Icon size={16} className="text-gold" />
                 </div>
-                <div className="min-w-0 flex-1">
+                <div>
                   <p className="text-xs text-cream/50 mb-0.5">{label}</p>
-                  <p className="text-sm font-medium text-cream whitespace-pre-line break-all">{value}</p>
+                  <p className="text-sm font-medium text-cream whitespace-pre-line">{value}</p>
                 </div>
               </div>
             </Card>
@@ -82,6 +83,10 @@ export function ContactPage() {
             </form>
           </Card>
         </div>
+      </div>
+
+      <div className="mt-20">
+        <ComplianceBadges />
       </div>
     </div>
   );

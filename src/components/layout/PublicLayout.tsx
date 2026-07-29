@@ -5,9 +5,9 @@ import { PLATFORM_FINCEN } from '../../lib/constants';
 import { useAuth } from '../../hooks/useAuth';
 import { useSmartBack } from '../../hooks/useSmartBack';
 
-const NAV_BG    = '#0D1632';
-const BORDER    = 'rgba(241,240,218,0.08)';
-const CREAM     = '#F1F0DA';
+const NAV_BG = '#0D1632';
+const BORDER = 'rgba(241,240,218,0.08)';
+const CREAM = '#F1F0DA';
 const CREAM_DIM = 'rgba(241,240,218,0.45)';
 
 const navLink = `text-xs font-semibold uppercase tracking-widest transition-colors duration-150 hover:text-cream`;
@@ -30,15 +30,15 @@ export function PublicLayout() {
 
           <nav className="hidden md:flex items-center gap-6" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             {[
-              { to: '/faq',              label: 'FAQ' },
+              { to: '/faq', label: 'FAQ' },
               { to: '/training-preview', label: 'Training' },
-              { to: '/contact',          label: 'Contact' },
+              { to: '/contact', label: 'Contact' },
             ].map(({ to, label }) => (
               <Link key={to} to={to} className={navLink} style={{ color: CREAM_DIM, fontFamily: 'inherit' }}>
                 {label}
               </Link>
             ))}
-            
+
             {isAuthenticated ? (
               <button onClick={goBack} className="btn-primary flex items-center gap-1.5">
                 <ArrowLeft size={16} /> Back
@@ -101,11 +101,11 @@ export function PublicLayout() {
               style={{ fontFamily: "'Space Grotesk', sans-serif", color: CREAM_DIM }}
             >
               {[
-                ['/terms',           'Terms'],
-                ['/privacy',         'Privacy'],
+                ['/terms', 'Terms'],
+                ['/privacy', 'Privacy'],
                 ['/code-of-conduct', 'Code of Conduct'],
-                ['/faq',             'FAQ'],
-                ['/contact',         'Contact'],
+                ['/faq', 'FAQ'],
+                ['/contact', 'Contact'],
               ].map(([to, label]) => (
                 <Link
                   key={to}
@@ -120,16 +120,15 @@ export function PublicLayout() {
           </div>
 
           {/* Bottom rule */}
-          <div className="mt-8 pt-6 border-t flex items-center justify-between" style={{ borderColor: BORDER }}>
-            <p className="text-xs" style={{ color: 'rgba(241,240,218,0.2)', fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '0.06em' }}>
-              WORKERS NEVER FRONT THEIR OWN MONEY
-            </p>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#7DC99A' }} />
-              <span className="text-xs font-semibold" style={{ color: '#7DC99A', fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '0.06em' }}>
-                LIVE
-              </span>
-            </div>
+          <div className="mt-8 pt-6 border-t flex flex-wrap items-center justify-start gap-[10px]" style={{ borderColor: BORDER }}>
+            {/* FinCEN */}
+            <img src="/images/compliance/fincen-user.png" alt="FinCEN Registered" className="h-16 object-contain" title="FinCEN Registered Money Services Business" />
+
+            {/* NACHA */}
+            <img src="/images/compliance/nacha-user.png" alt="NACHA Compliant" className="h-12 object-contain" title="NACHA — ACH Compliant" />
+
+            {/* BBB */}
+            <img src="/images/compliance/bbb-user.png" alt="BBB Accredited" className="h-14 object-contain" title="Better Business Bureau Accredited" />
           </div>
         </div>
       </footer>

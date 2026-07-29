@@ -42,9 +42,9 @@ export function ContactPage() {
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,168,76,0.15)' }}>
                   <Icon size={16} className="text-gold" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs text-cream/50 mb-0.5">{label}</p>
-                  <p className="text-sm font-medium text-cream whitespace-pre-line">{value}</p>
+                  <p className="text-sm font-medium text-cream whitespace-pre-line break-all">{value}</p>
                 </div>
               </div>
             </Card>

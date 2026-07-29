@@ -138,6 +138,7 @@ export function AccountPage() {
   const [verifyingTwoFactor, setVerifyingTwoFactor] = useState(false);
   const [twoFactorSetup, setTwoFactorSetup] = useState<{ factorId: string; qrCode: string | null; secret: string; challengeId: string | null } | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [disablingTwoFactor, setDisablingTwoFactor] = useState(false);
 
   // Legal
   const [signedDocuments, setSignedDocuments] = useState<WorkerSignedDocument[]>([]);
@@ -399,6 +400,28 @@ export function AccountPage() {
     }
   }
 
+  async function disableTwoFactor() {
+    setDisablingTwoFactor(true);
+    try {
+      if (supabase.auth?.mfa?.listFactors && supabase.auth?.mfa?.unenroll) {
+        const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
+        if (listError) throw listError;
+        for (const factor of factors.all || []) {
+          if (factor.status === 'verified') {
+            await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          }
+        }
+      }
+      await setWorkerTwoFactorEnabled(profile!.id, false);
+      setSecuritySetting(await getWorkerSecuritySetting(profile!.id));
+      toast.success('Two-factor authentication disabled');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not disable 2FA');
+    } finally {
+      setDisablingTwoFactor(false);
+    }
+  }
+
   async function toggleNotificationPreference(key: NotificationPreferenceKey) {
     if (!notificationPreferences) return;
     const nextValue = !notificationPreferences[key];
@@ -576,7 +599,17 @@ export function AccountPage() {
                 </p>
               </div>
               {twoFactorEnabled ? (
-                <span className="status-verified">Active</span>
+                <div className="flex items-center gap-2">
+                  <span className="status-verified">Active</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={disablingTwoFactor}
+                    onClick={disableTwoFactor}
+                  >
+                    Disable
+                  </Button>
+                </div>
               ) : (
                 <Button
                   variant="secondary"

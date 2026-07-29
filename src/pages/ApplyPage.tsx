@@ -11,14 +11,19 @@ const COUNTRIES = ['United States'];
 const steps = ['Account', 'Background', 'Methods & Banks', 'Certify'];
 
 function friendlyApplyError(err: any): string {
-  const message = typeof err?.message === 'string' ? err.message : '';
+  // Supabase can return an error object with no message (empty body) — guard against showing raw `{}`
+  const raw = err?.message ?? err?.msg ?? err?.error_description ?? '';
+  const message = typeof raw === 'string' ? raw.trim() : '';
+  // Ignore messages that are just a serialised empty object or whitespace
+  const isEmpty = !message || message === '{}' || message === '[]';
   const lower = message.toLowerCase();
   if (err?.code === 'supabase_not_configured') return 'Signup is not connected yet. Please contact support.';
   if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('user already')) return 'An account with this email already exists. Try signing in instead.';
   if (lower.includes('invalid email')) return 'Enter a valid email address.';
   if (lower.includes('password')) return message;
   if (lower.includes('rate limit') || lower.includes('too many')) return 'Too many signup attempts. Please wait a moment and try again.';
-  return message || 'Application could not be submitted. Please try again.';
+  if (isEmpty) return 'Application could not be submitted. Please try again.';
+  return message;
 }
 
 export function ApplyPage() {

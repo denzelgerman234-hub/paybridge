@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { HeroSection } from './HeroSection';
 import { TrustBar } from './TrustBar';
-import { ComplianceBadges } from './ComplianceBadges';
 import { HowItWorks } from './HowItWorks';
 import { BadgeProgression } from './BadgeProgression';
 import { Testimonials } from './Testimonials';
@@ -119,7 +118,6 @@ export function LandingPage() {
     <div>
       <HeroSection />
       <TrustBar />
-      <ComplianceBadges />
       <HowItWorks />
       <BadgeProgression />
       <Testimonials />

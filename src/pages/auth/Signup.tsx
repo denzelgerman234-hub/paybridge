@@ -12,7 +12,9 @@ const GOLD  = '#C9A84C';
 const TERRA = '#C8523D';
 
 function friendlySignupError(err: any): string {
-  const message = typeof err?.message === 'string' ? err.message : '';
+  const raw = err?.message ?? err?.msg ?? err?.error_description ?? '';
+  const message = typeof raw === 'string' ? raw.trim() : '';
+  const isEmpty = !message || message === '{}' || message === '[]';
   const lower = message.toLowerCase();
 
   if (err?.code === 'supabase_not_configured') {
@@ -30,8 +32,8 @@ function friendlySignupError(err: any): string {
   if (lower.includes('rate limit') || lower.includes('too many')) {
     return 'Too many signup attempts. Please wait a moment and try again.';
   }
-  if (message) return message;
-  return 'Account creation failed. Please try again.';
+  if (isEmpty) return 'Account creation failed. Please try again.';
+  return message;
 }
 
 export function Signup() {

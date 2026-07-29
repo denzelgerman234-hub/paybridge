@@ -121,14 +121,13 @@ export function PublicLayout() {
 
           {/* Bottom rule */}
           <div className="mt-8 pt-6 border-t flex flex-wrap items-center justify-start gap-[10px]" style={{ borderColor: BORDER }}>
-            {/* FinCEN */}
-            <img src="/images/compliance/fincen-user.png" alt="FinCEN Registered" className="h-16 object-contain" title="FinCEN Registered Money Services Business" />
-
-            {/* NACHA */}
-            <img src="/images/compliance/nacha-user.png" alt="NACHA Compliant" className="h-12 object-contain" title="NACHA — ACH Compliant" />
-
-            {/* BBB */}
-            <img src="/images/compliance/bbb-user.png" alt="BBB Accredited" className="h-14 object-contain" title="Better Business Bureau Accredited" />
+            <img src="/images/compliance/fincen-user.png" alt="FinCEN Registered" className="h-28 object-contain" title="FinCEN Registered Money Services Business" />
+            <img src="/images/compliance/ofac-user.png" alt="OFAC" className="h-28 object-contain" title="OFAC Compliant" />
+            <img src="/images/compliance/nacha-user.png" alt="NACHA Compliant" className="h-20 object-contain" title="NACHA — ACH Compliant" />
+            <img src="/images/compliance/pcidss-user.png" alt="PCI DSS" className="h-24 object-contain" title="PCI DSS Compliant" />
+            <img src="/images/compliance/soc2-user.png" alt="SOC 2" className="h-28 object-contain" title="SOC 2 Certified" />
+            <img src="/images/compliance/iso27001-user.png" alt="ISO 27001" className="h-28 object-contain" title="ISO 27001 Certified" />
+            <img src="/images/compliance/bbb-user.png" alt="BBB Accredited" className="h-24 object-contain" title="Better Business Bureau Accredited" />
           </div>
         </div>
       </footer>

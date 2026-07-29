@@ -18,6 +18,9 @@ function friendlyApplyError(err: any): string {
   const isEmpty = !message || message === '{}' || message === '[]';
   const lower = message.toLowerCase();
   if (err?.code === 'supabase_not_configured') return 'Signup is not connected yet. Please contact support.';
+  if (err?.status === 401 || err?.statusCode === 401) return 'Signup is not authorized. Check the Supabase publishable key and restart the app.';
+  if (err?.status === 403 || err?.statusCode === 403) return 'Signup is blocked by the current Supabase auth settings.';
+  if (lower.includes('jwt') || lower.includes('invalid api key') || lower.includes('unauthorized')) return 'Signup is not authorized. Check the Supabase publishable key and restart the app.';
   if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('user already')) return 'An account with this email already exists. Try signing in instead.';
   if (lower.includes('invalid email')) return 'Enter a valid email address.';
   if (lower.includes('password')) return message;

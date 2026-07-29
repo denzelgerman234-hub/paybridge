@@ -94,6 +94,17 @@ export function useAuth() {
     setLoading(false);
   }
 
+  async function navigateAfterLogin() {
+    const { data: appRow } = await supabase
+      .from('worker_applications')
+      .select('status')
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const appStatus = (appRow as any)?.status;
+    navigate(appStatus && appStatus !== 'approved' ? '/application-status' : '/dashboard');
+  }
+
   async function signIn(email: string, password: string) {
     const normalizedEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
@@ -106,15 +117,34 @@ export function useAuth() {
       }
       throw error;
     }
-    // Check Supabase for application status to decide where to redirect
-    const { data: appRow } = await supabase
-      .from('worker_applications')
-      .select('status')
-      .order('submitted_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const appStatus = (appRow as any)?.status;
-    navigate(appStatus && appStatus !== 'approved' ? '/application-status' : '/dashboard');
+    
+    // Check MFA
+    const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (mfaData?.nextLevel === 'aal2' && mfaData?.currentLevel === 'aal1') {
+      return { needsTwoFactor: true };
+    }
+
+    await navigateAfterLogin();
+    return { needsTwoFactor: false };
+  }
+
+  async function verifyTwoFactorLogin(code: string) {
+    const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
+    if (listError) throw listError;
+    const factor = factors.all?.find((f: { id: string; status: string }) => f.status === 'verified');
+    if (!factor) throw new Error('No verified 2FA factor found');
+    
+    const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
+    if (challengeError) throw challengeError;
+    
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: factor.id,
+      challengeId: challengeData.id,
+      code
+    });
+    if (verifyError) throw verifyError;
+    
+    await navigateAfterLogin();
   }
 
   async function signUp(
@@ -216,6 +246,7 @@ export function useAuth() {
     isEmailUnverified,
     pendingEmail,
     signIn,
+    verifyTwoFactorLogin,
     signUp,
     signOut,
     resendVerification,

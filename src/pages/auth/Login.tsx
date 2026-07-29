@@ -4,7 +4,7 @@ import { useAuth, EmailNotConfirmedError } from '../../hooks/useAuth';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Mail, Lock, RefreshCw, CheckCircle } from 'lucide-react';
+import { Mail, Lock, RefreshCw, CheckCircle, ShieldCheck } from 'lucide-react';
 
 const GOLD = '#C9A84C';
 const CREAM = '#F1F0DA';
@@ -13,11 +13,15 @@ const TERRA = '#C8523D';
 const RESEND_COOLDOWN_S = 60;
 
 export function Login() {
-  const { signIn, resendVerification } = useAuth();
+  const { signIn, resendVerification, verifyTwoFactorLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // 2FA state
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   // Unverified-email state
   const [showUnverified, setShowUnverified] = useState(false);
@@ -46,7 +50,20 @@ export function Login() {
     setShowUnverified(false);
     setLoading(true);
     try {
-      await signIn(email, password);
+      if (showTwoFactor) {
+        const clean = twoFactorCode.replace(/\D/g, '');
+        if (clean.length !== 6) {
+          setError('Enter the 6-digit code from your authenticator app');
+          setLoading(false);
+          return;
+        }
+        await verifyTwoFactorLogin(clean);
+      } else {
+        const result = await signIn(email, password);
+        if (result?.needsTwoFactor) {
+          setShowTwoFactor(true);
+        }
+      }
     } catch (err: any) {
       if (err instanceof EmailNotConfirmedError) {
         setShowUnverified(true);
@@ -77,9 +94,28 @@ export function Login() {
   return (
     <Card padding="lg">
       <div className="mb-7 text-center">
-        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif", color: CREAM }}>Welcome back</h1>
-        <p className="text-xs" style={{ color: DIM }}>Sign in to your PayBridge account</p>
+        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif", color: CREAM }}>
+          {showTwoFactor ? 'Two-Factor Auth' : 'Welcome back'}
+        </h1>
+        <p className="text-xs" style={{ color: DIM }}>
+          {showTwoFactor
+            ? 'Enter the code from your authenticator app'
+            : 'Sign in to your PayBridge account'}
+        </p>
       </div>
+
+      {/* 2FA panel */}
+      {showTwoFactor && (
+        <div
+          className="mb-5 p-4 rounded-lg flex items-start gap-3"
+          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)' }}
+        >
+          <ShieldCheck size={18} strokeWidth={1.5} style={{ color: GOLD, flexShrink: 0, marginTop: 1 }} />
+          <p className="text-xs leading-relaxed" style={{ color: DIM }}>
+            Open <strong style={{ color: CREAM }}>Paybridge</strong> in your authenticator app and enter the 6-digit code below.
+          </p>
+        </div>
+      )}
 
       {/* Unverified-email panel */}
       {showUnverified && (
@@ -129,48 +165,80 @@ export function Login() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Input
-          label="Email address"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="you@email.com"
-          required
-          icon={<Mail size={16} />}
-        />
-        <Input
-          label="Password"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder="********"
-          required
-          icon={<Lock size={16} />}
-        />
+        {!showTwoFactor ? (
+          <>
+            <Input
+              label="Email address"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@email.com"
+              required
+              icon={<Mail size={16} />}
+            />
+            <Input
+              label="Password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="********"
+              required
+              icon={<Lock size={16} />}
+            />
+          </>
+        ) : (
+          <Input
+            label="6-digit authenticator code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={twoFactorCode}
+            onChange={e => setTwoFactorCode(e.target.value)}
+            placeholder="000000"
+            required
+            icon={<ShieldCheck size={16} />}
+          />
+        )}
 
         {error && <p className="text-sm text-red-400 text-center">{error}</p>}
 
-        <div className="flex items-center justify-end">
-          <Link to="/forgot-password" className="text-xs font-semibold transition-colors" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>
-            Forgot password?
-          </Link>
-        </div>
+        {!showTwoFactor && (
+          <div className="flex items-center justify-end">
+            <Link to="/forgot-password" className="text-xs font-semibold transition-colors" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>
+              Forgot password?
+            </Link>
+          </div>
+        )}
 
         <Button type="submit" loading={loading} className="w-full" size="lg">
-          Sign In
+          {showTwoFactor ? 'Verify & Sign In' : 'Sign In'}
         </Button>
+
+        {showTwoFactor && (
+          <button
+            type="button"
+            onClick={() => { setShowTwoFactor(false); setTwoFactorCode(''); setError(''); }}
+            className="w-full text-center text-xs transition-colors"
+            style={{ color: DIM }}
+          >
+            ← Back to login
+          </button>
+        )}
       </form>
 
-      <div className="divider my-5" />
-      <p className="text-center text-xs" style={{ color: DIM }}>
-        Don't have an account?{' '}
-        <Link to="/apply" className="font-bold transition-colors" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>Apply Now</Link>
-      </p>
+      {!showTwoFactor && (
+        <>
+          <div className="divider my-5" />
+          <p className="text-center text-xs" style={{ color: DIM }}>
+            Don't have an account?{' '}
+            <Link to="/apply" className="font-bold transition-colors" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>Apply Now</Link>
+          </p>
 
-      <p className="text-center text-xs text-cream/50 mt-4 opacity-60">
-        Use your PayBridge worker credentials to sign in.
-      </p>
+          <p className="text-center text-xs text-cream/50 mt-4 opacity-60">
+            Use your PayBridge worker credentials to sign in.
+          </p>
+        </>
+      )}
     </Card>
   );
 }
-

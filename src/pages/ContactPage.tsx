@@ -32,9 +32,9 @@ export function ContactPage() {
         {/* Contact info */}
         <div className="space-y-4">
           {[
-            { icon: Mail,  label: 'General Support', value: 'support@paybridge.work' },
-            { icon: Mail,  label: 'Compliance',       value: 'compliance@paybridge.work' },
-            { icon: Mail,  label: 'Applications',     value: 'apply@paybridge.work' },
+            { icon: Mail,  label: 'General Support', value: 'assistance.paybridge@outlook.com' },
+            { icon: Mail,  label: 'Compliance',       value: 'compliance.paybridge@outlook.com' },
+            { icon: Mail,  label: 'Applications',     value: 'apply.paybridge@outlook.com' },
             { icon: MapPin, label: 'Mailing Address',  value: 'PayBridge LLC\nP.O. Box 12345\nDelaware, USA' },
           ].map(({ icon: Icon, label, value }) => (
             <Card key={label} padding="md">

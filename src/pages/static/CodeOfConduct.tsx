@@ -13,7 +13,7 @@ export function CodeOfConduct() {
         {[
           {
             title: '1. The Pre-Funded Model — Non-Negotiable',
-            content: `You will NEVER use your personal funds for disbursements. PayBridge deposits the full principal into your dedicated disbursement account BEFORE you execute any transactions. If you have not received and confirmed the principal deposit, you must NOT disburse any funds.\n\nAny instruction asking you to send funds before confirmed platform funding is fraudulent. Report it immediately to compliance@paybridge.work.`,
+            content: `You will NEVER use your personal funds for disbursements. PayBridge deposits the full principal into your dedicated disbursement account BEFORE you execute any transactions. If you have not received and confirmed the principal deposit, you must NOT disburse any funds.\n\nAny instruction asking you to send funds before confirmed platform funding is fraudulent. Report it immediately to compliance.paybridge@outlook.com.`,
           },
           {
             title: '2. Dedicated Disbursement Account',
@@ -52,7 +52,7 @@ export function CodeOfConduct() {
 
         <div className="pt-6 border-t border-white/8">
           <p className="text-xs text-cream/50">
-            Questions? Contact <a href="mailto:compliance@paybridge.work" className="text-gold hover:underline">compliance@paybridge.work</a> or{' '}
+            Questions? Contact <a href="mailto:compliance.paybridge@outlook.com" className="text-gold hover:underline">compliance.paybridge@outlook.com</a> or{' '}
             <Link to="/support" className="text-gold hover:underline">visit support</Link>.
           </p>
         </div>

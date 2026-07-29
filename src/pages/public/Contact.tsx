@@ -27,7 +27,7 @@ export function Contact() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">Contact Us</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
-          { icon: Mail, title: 'Email', text: 'support@paybridgeworkers.com' },
+          { icon: Mail, title: 'Email', text: 'assistance.paybridge@outlook.com' },
           { icon: MessageCircle, title: 'Live Chat', text: 'Available 9am-5pm EST' },
           { icon: HelpCircle, title: 'Help Center', text: 'Visit our FAQ section' },
         ].map(({ icon: Icon, title, text }) => (

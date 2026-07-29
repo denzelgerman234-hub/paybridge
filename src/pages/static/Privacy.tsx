@@ -13,7 +13,7 @@ export function PrivacyPage() {
           { title: 'Data Security', body: 'We implement industry-standard security measures including AES-256 encryption at rest, TLS in transit, role-based access controls, and regular security audits.' },
           { title: 'Data Sharing', body: 'We do not sell your personal information. We may share data with regulatory authorities as required by law (including FinCEN, IRS, and OFAC), with Plaid for bank verification, and with payment processors or banking partners when required to support manual identity review, gig funding, and disbursement records.' },
           { title: 'Data Retention', body: 'We retain your data for 7 years after account closure to comply with BSA/AML recordkeeping requirements.' },
-          { title: 'Your Rights', body: 'You have the right to access, correct, or delete your personal data (subject to legal retention requirements). Contact support@paybridge.work to exercise these rights.' },
+          { title: 'Your Rights', body: 'You have the right to access, correct, or delete your personal data (subject to legal retention requirements). Contact assistance.paybridge@outlook.com to exercise these rights.' },
         ].map(({ title, body }) => (
           <section key={title}>
             <h2 className="text-lg font-black text-cream mb-2">{title}</h2>

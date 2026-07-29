@@ -200,7 +200,7 @@ export function SupportPage() {
           <p className="font-semibold text-red-400 text-sm">If you receive a suspicious disbursement request:</p>
           <p className="text-xs text-cream/50 mt-1">
             STOP immediately. Do not send any funds. Report via the incident form above or email{' '}
-            <a href="mailto:compliance@paybridge.work" className="text-red-400 underline">compliance@paybridge.work</a>.
+            <a href="mailto:compliance.paybridge@outlook.com" className="text-red-400 underline">compliance.paybridge@outlook.com</a>.
             You are protected when you report proactively.
           </p>
         </div>
@@ -238,8 +238,8 @@ export function SupportPage() {
           ))}
         </div>
         <div className="mt-4 pt-4 border-t border-white/8 flex items-center gap-4 text-xs text-cream/50">
-          <a href="mailto:support@paybridge.work" className="flex items-center gap-1.5 hover:text-cream"><Mail size={13} /> support@paybridge.work</a>
-          <a href="mailto:compliance@paybridge.work" className="flex items-center gap-1.5 hover:text-red-400"><AlertTriangle size={13} /> compliance@paybridge.work</a>
+          <a href="mailto:assistance.paybridge@outlook.com" className="flex items-center gap-1.5 hover:text-cream"><Mail size={13} /> assistance.paybridge@outlook.com</a>
+          <a href="mailto:compliance.paybridge@outlook.com" className="flex items-center gap-1.5 hover:text-red-400"><AlertTriangle size={13} /> compliance.paybridge@outlook.com</a>
         </div>
       </Card>
 

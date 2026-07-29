@@ -184,10 +184,15 @@ export function useGigs(workerId?: string) {
     }
 
     const gig = gigs.find(item => item.id === gigId);
+    const { data: profile } = await supabase
+      .from('worker_profiles')
+      .select('full_name')
+      .eq('id', workerId)
+      .maybeSingle();
     const { error } = await supabase.from('gig_applications').upsert({
       gig_id: gigId,
       worker_id: workerId,
-      worker_name: 'Worker',
+      worker_name: profile?.full_name || 'Worker',
       status: 'submitted',
       note,
       review_note: null,
@@ -205,11 +210,9 @@ export function useGigs(workerId?: string) {
       return;
     }
 
-    const { error } = await supabase
-      .from('worker_gigs')
-      .update({ funding_status: 'funding_confirmed' })
-      .eq('id', gigId)
-      .eq('worker_id', workerId);
+    const { error } = await supabase.functions.invoke('worker-confirm-funding', {
+      body: { gig_id: gigId },
+    });
     if (error) throw error;
     await refreshFromSupabase();
   }
@@ -239,22 +242,26 @@ export function useGigs(workerId?: string) {
       return;
     }
 
-    const proofUrl = file ? file.name : '';
-    const { error: proofError } = await supabase.from('disbursement_proofs').insert({
-      disbursement_id: disbursementId,
-      worker_id: workerId,
-      proof_url: proofUrl,
-      transaction_id: txid,
-      notes: file ? `Uploaded proof file: ${file.name}` : null,
-    });
-    if (proofError) throw proofError;
+    let proofUrl = `manual-reference:${txid}`;
+    if (file) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `${workerId}/${disbursementId}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('transaction-proofs')
+        .upload(storagePath, file, { upsert: true, contentType: file.type || undefined });
+      if (uploadError) throw uploadError;
+      proofUrl = storagePath;
+    }
 
-    const { error: updateError } = await supabase
-      .from('worker_disbursements')
-      .update({ transaction_id: txid, proof_file_name: file?.name ?? null, status: 'sent' })
-      .eq('id', disbursementId)
-      .eq('worker_id', workerId);
-    if (updateError) throw updateError;
+    const { error: functionError } = await supabase.functions.invoke('submit-disbursement-proof', {
+      body: {
+        disbursement_id: disbursementId,
+        proof_url: proofUrl,
+        transaction_id: txid,
+        notes: file ? `Uploaded proof file: ${file.name}` : null,
+      },
+    });
+    if (functionError) throw functionError;
     await refreshFromSupabase();
   }
 
@@ -265,4 +272,5 @@ export function useGigs(workerId?: string) {
 
   return { gigs, loading, applyToGig, confirmFunding, sendMessage, submitProof, getGigDetails, refetch: refresh };
 }
+
 

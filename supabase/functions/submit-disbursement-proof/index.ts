@@ -16,30 +16,33 @@ serve(async (req) => {
     const transaction_id = typeof body.transaction_id === 'string' ? body.transaction_id.trim() : null;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
 
-    const { data: disbursement } = await supabase
+    const { data: disbursement, error: disbursementError } = await supabase
       .from('worker_disbursements')
       .select('id, worker_id, status')
       .eq('id', disbursement_id)
-      .single();
+      .maybeSingle();
 
+    if (disbursementError) throw disbursementError;
     if (!disbursement) return json({ error: 'Disbursement not found' }, 404);
     if (disbursement.worker_id !== auth.user.id) return json({ error: 'Not assigned to this disbursement' }, 403);
     if (!['pending', 'failed', 'proof_rejected'].includes(disbursement.status)) {
       return json({ error: 'Proof cannot be submitted for this disbursement state' }, 400);
     }
 
-    await supabase.from('disbursement_proofs').insert({
+    const { error: proofError } = await supabase.from('disbursement_proofs').insert({
       disbursement_id,
       worker_id: auth.user.id,
       proof_url,
       transaction_id,
       notes,
     });
+    if (proofError) throw proofError;
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('worker_disbursements')
       .update({ status: 'sent', proof_url, transaction_id, sent_at: new Date().toISOString() })
       .eq('id', disbursement_id);
+    if (updateError) throw updateError;
 
     return json({ success: true, message: 'Proof submitted' });
   } catch (err) {

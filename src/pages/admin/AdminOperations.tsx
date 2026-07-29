@@ -1,50 +1,155 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { RiArrowLeftLine, RiBriefcaseLine, RiCheckboxCircleLine, RiMessage2Line, RiTimeLine } from 'react-icons/ri';
-import { localDb } from '../../lib/localDb';
+import { supabase } from '../../lib/supabase';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../lib/utils';
 import { MessageInputBar, Attachment } from '../../components/ui/MessageInputBar';
+import { OperationMessage, OperationThread, WorkerDisbursement, WorkerGig, WorkerProfile } from '../../types/database';
 
-type OperationRoom = ReturnType<typeof localDb.listOperationRooms>[number];
+type OperationRoom = OperationThread & {
+  gig: WorkerGig | null;
+  worker: WorkerProfile | null;
+  messages: OperationMessage[];
+  disbursements: WorkerDisbursement[];
+};
 
 const BORDER = 'rgba(241,240,218,0.09)';
 const CREAM = '#F1F0DA';
 const DIM = 'rgba(241,240,218,0.50)';
 const GOLD = '#C9A84C';
 
+function normalizeGig(row: any): WorkerGig {
+  return {
+    ...row,
+    total_principal: Number(row.total_principal ?? 0),
+    commission_rate: Number(row.commission_rate ?? 0),
+    commission_amount: Number(row.commission_amount ?? 0),
+    recipient_count: Number(row.recipient_count ?? 0),
+    disbursement_methods: Array.isArray(row.disbursement_methods) ? row.disbursement_methods : [],
+    funded: Boolean(row.funded),
+  } as WorkerGig;
+}
+
+function normalizeWorker(row: any): WorkerProfile {
+  return {
+    ...row,
+    total_gigs_completed: Number(row.total_gigs_completed ?? 0),
+    total_disbursed: Number(row.total_disbursed ?? 0),
+    total_earned: Number(row.total_earned ?? 0),
+    rating: Number(row.rating ?? 0),
+  } as WorkerProfile;
+}
+
+function normalizeDisbursement(row: any): WorkerDisbursement {
+  return { ...row, amount: Number(row.amount ?? 0) } as WorkerDisbursement;
+}
+
+function throwIfError(error: any) {
+  if (error) throw error;
+}
+
 export function AdminOperations() {
-  const [rooms, setRooms] = useState<OperationRoom[]>(() => localDb.listOperationRooms());
+  const [rooms, setRooms] = useState<OperationRoom[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'rooms' | 'detail'>('rooms');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
 
-  function refresh() {
-    const next = localDb.listOperationRooms();
-    setRooms(next);
-    setSelectedId(current => current ?? next[0]?.id ?? null);
+  async function refresh() {
+    setLoading(true);
+    try {
+      const [threadsResult, gigsResult, workersResult, messagesResult, disbursementsResult] = await Promise.all([
+        supabase.from('operation_threads').select('*').order('updated_at', { ascending: false }),
+        supabase.from('worker_gigs').select('*'),
+        supabase.from('worker_profiles').select('*'),
+        supabase.from('operation_messages').select('*').order('created_at', { ascending: true }),
+        supabase.from('worker_disbursements').select('*').order('created_at', { ascending: true }),
+      ]);
+
+      throwIfError(threadsResult.error);
+      throwIfError(gigsResult.error);
+      throwIfError(workersResult.error);
+      throwIfError(messagesResult.error);
+      throwIfError(disbursementsResult.error);
+
+      const gigs: WorkerGig[] = (gigsResult.data ?? []).map((row: any) => normalizeGig(row));
+      const workers: WorkerProfile[] = (workersResult.data ?? []).map((row: any) => normalizeWorker(row));
+      const messages = (messagesResult.data ?? []) as OperationMessage[];
+      const disbursements: WorkerDisbursement[] = (disbursementsResult.data ?? []).map((row: any) => normalizeDisbursement(row));
+      const gigById = new Map(gigs.map(gig => [gig.id, gig]));
+      const workerById = new Map(workers.map(worker => [worker.id, worker]));
+      const messagesByThread = new Map<string, OperationMessage[]>();
+      const disbursementsByGig = new Map<string, WorkerDisbursement[]>();
+
+      messages.forEach(item => {
+        const group = messagesByThread.get(item.thread_id) ?? [];
+        group.push(item);
+        messagesByThread.set(item.thread_id, group);
+      });
+      disbursements.forEach(item => {
+        const group = disbursementsByGig.get(item.gig_id) ?? [];
+        group.push(item);
+        disbursementsByGig.set(item.gig_id, group);
+      });
+
+      const nextRooms = ((threadsResult.data ?? []) as OperationThread[]).map(thread => ({
+        ...thread,
+        gig: gigById.get(thread.gig_id) ?? null,
+        worker: workerById.get(thread.worker_id) ?? null,
+        messages: messagesByThread.get(thread.id) ?? [],
+        disbursements: disbursementsByGig.get(thread.gig_id) ?? [],
+      }));
+
+      setRooms(nextRooms);
+      setSelectedId(current => current ?? nextRooms[0]?.id ?? null);
+    } catch (error) {
+      console.error('[paybridge] Failed to load operations rooms', error);
+      toast.error(error instanceof Error ? error.message : 'Could not load operations rooms');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => {
-    refresh();
-    return localDb.subscribe(refresh);
-  }, []);
+  useEffect(() => { void refresh(); }, []);
 
   const selected = useMemo(() => rooms.find(room => room.id === selectedId) ?? rooms[0] ?? null, [rooms, selectedId]);
   const activeRooms = rooms.filter(room => room.status === 'open').length;
   const totalMessages = rooms.reduce((sum, room) => sum + room.messages.length, 0);
   const awaitingProof = rooms.reduce((count, room) => count + room.disbursements.filter(d => d.status === 'sent').length, 0);
 
-  function sendMessage(attachments: Attachment[]) {
+  async function sendMessage(attachments: Attachment[]) {
     if (!selected || (!message.trim() && attachments.length === 0)) return;
-    let body = message.trim();
-    if (attachments.length > 0) {
-      const names = attachments.map(a => a.file.name).join(', ');
-      body = body ? `${body} [Attached: ${names}]` : `[Attached: ${names}]`;
+    setSending(true);
+    try {
+      let body = message.trim();
+      if (attachments.length > 0) {
+        const names = attachments.map(a => a.file.name).join(', ');
+        body = body ? `${body} [Attached: ${names}]` : `[Attached: ${names}]`;
+      }
+      const { error } = await supabase.from('operation_messages').insert({
+        thread_id: selected.id,
+        sender_role: 'operations',
+        sender_name: selected.specialist_name || 'Operations',
+        body,
+      });
+      throwIfError(error);
+
+      const { error: updateError } = await supabase
+        .from('operation_threads')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', selected.id);
+      throwIfError(updateError);
+
+      setMessage('');
+      await refresh();
+      toast.success('Message sent');
+    } catch (error) {
+      console.error('[paybridge] Failed to send operations message', error);
+      toast.error(error instanceof Error ? error.message : 'Could not send message');
+    } finally {
+      setSending(false);
     }
-    localDb.sendMessage(selected.id, 'operations', selected.specialist_name || 'Operations', body);
-    setMessage('');
-    refresh();
-    toast.success('Message sent');
   }
 
   function openRoom(roomId: string) {
@@ -56,7 +161,7 @@ export function AdminOperations() {
     return (
       <div className="card overflow-hidden">
         {rooms.length === 0 ? (
-          <div className="p-8 text-center text-cream/50">No operations rooms yet. Accept a gig application to open one.</div>
+          <div className="p-8 text-center text-cream/50">{loading ? 'Loading operations rooms...' : 'No operations rooms yet. Accept a gig application to open one.'}</div>
         ) : rooms.map(room => {
           const last = room.messages[room.messages.length - 1];
           const verified = room.disbursements.filter(d => d.status === 'verified').length;
@@ -136,7 +241,7 @@ export function AdminOperations() {
                 onChange={setMessage}
                 onSend={sendMessage}
                 placeholder="Message the worker..."
-                disabled={!selected}
+                disabled={!selected || sending}
               />
             </div>
           </div>

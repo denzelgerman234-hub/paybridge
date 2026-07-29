@@ -6,10 +6,11 @@ import { Textarea } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { MessageInputBar, Attachment } from '../components/ui/MessageInputBar';
 import toast from 'react-hot-toast';
-import { HelpCircle, MessageSquare, AlertTriangle, Phone, Mail, ExternalLink, ChevronRight, Send, Headset } from 'lucide-react';
+import { HelpCircle, MessageSquare, AlertTriangle, Phone, Mail, ExternalLink, ChevronRight, Headset } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { localDb } from '../lib/localDb';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { SupportChatMessage, SupportChatThread } from '../types/database';
 
 const FAQS = [
   { q: 'Do I ever use my own money?', a: 'Never. PayBridge deposits the full principal into your dedicated account before you execute any disbursements.' },
@@ -20,6 +21,10 @@ const FAQS = [
   { q: 'What happens if I miss a deadline?', a: 'Your badge score is impacted. Repeated misses may result in gig reassignment or account review.' },
 ];
 
+function throwIfError(error: any) {
+  if (error) throw error;
+}
+
 export function SupportPage() {
   const { profile } = useAuth();
   const [showTicket, setShowTicket] = useState(false);
@@ -29,38 +34,112 @@ export function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ReturnType<typeof localDb.getSupportChat>['messages']>([]);
+  const [chatThread, setChatThread] = useState<SupportChatThread | null>(null);
+  const [chatMessages, setChatMessages] = useState<SupportChatMessage[]>([]);
+  const [busy, setBusy] = useState(false);
 
-  function refreshChat() {
+  async function refreshChat() {
     if (!profile) {
+      setChatThread(null);
       setChatMessages([]);
       return;
     }
-    setChatMessages(localDb.getSupportChat(profile.id).messages);
+
+    try {
+      const { data: thread, error: threadError } = await supabase
+        .from('support_chat_threads')
+        .select('*')
+        .eq('worker_id', profile.id)
+        .eq('status', 'open')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      throwIfError(threadError);
+      setChatThread(thread as SupportChatThread | null);
+
+      if (!thread) {
+        setChatMessages([]);
+        return;
+      }
+
+      const { data: messages, error: messagesError } = await supabase
+        .from('support_chat_messages')
+        .select('*')
+        .eq('thread_id', thread.id)
+        .order('created_at', { ascending: true });
+      throwIfError(messagesError);
+      setChatMessages((messages ?? []) as SupportChatMessage[]);
+    } catch (error) {
+      console.error('[paybridge] Failed to load support chat', error);
+      toast.error(error instanceof Error ? error.message : 'Could not load support chat');
+    }
   }
 
-  useEffect(() => {
-    refreshChat();
-    return localDb.subscribe(refreshChat);
-  }, [profile?.id]);
+  useEffect(() => { void refreshChat(); }, [profile?.id]);
 
-  function submitTicket() {
-    if (profile) localDb.submitSupportTicket(profile.id, ticket.subject, ticket.message);
-    toast.success('Support ticket submitted. We will respond within 24 hours.');
-    setTicket({ subject: '', message: '' });
-    setShowTicket(false);
+  async function submitTicket() {
+    if (!profile) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('support_tickets').insert({
+        worker_id: profile.id,
+        subject: ticket.subject.trim(),
+        message: ticket.message.trim(),
+        type: 'general',
+        priority: 'normal',
+        status: 'open',
+      });
+      throwIfError(error);
+      toast.success('Support ticket submitted. We will respond within 24 hours.');
+      setTicket({ subject: '', message: '' });
+      setShowTicket(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not submit ticket');
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function submitIncident() {
-    if (profile) localDb.submitIncident(profile.id, incident.gig_id, incident.description);
-    toast.success('Incident reported. Do not proceed with any further disbursements until resolved.');
-    setIncident({ gig_id: '', description: '' });
-    setShowIncident(false);
+  async function submitIncident() {
+    if (!profile) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('support_tickets').insert({
+        worker_id: profile.id,
+        subject: incident.gig_id.trim() ? `Incident: ${incident.gig_id.trim()}` : 'Incident report',
+        message: incident.description.trim(),
+        type: 'incident',
+        priority: 'urgent',
+        status: 'open',
+      });
+      throwIfError(error);
+      toast.success('Incident reported. Do not proceed with any further disbursements until resolved.');
+      setIncident({ gig_id: '', description: '' });
+      setShowIncident(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not submit incident');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function getOrCreateChatThread() {
+    if (!profile) throw new Error('Worker profile required');
+    if (chatThread) return chatThread;
+
+    const { data, error } = await supabase
+      .from('support_chat_threads')
+      .insert({ worker_id: profile.id, status: 'open', unread_for_admin: false, unread_for_worker: false })
+      .select('*')
+      .single();
+    throwIfError(error);
+    return data as SupportChatThread;
   }
 
   const handleSendChatMessage = async (attachments: Attachment[]) => {
     if (!profile || (!chatInput.trim() && attachments.length === 0)) return;
-    
+    setBusy(true);
+
     let body = chatInput.trim();
     if (attachments.length > 0) {
       const names = attachments.map(a => a.file.name).join(', ');
@@ -68,11 +147,27 @@ export function SupportPage() {
     }
 
     try {
-      await localDb.sendSupportChatMessage(profile.id, 'worker', profile.full_name, body);
+      const thread = await getOrCreateChatThread();
+      const { error } = await supabase.from('support_chat_messages').insert({
+        thread_id: thread.id,
+        sender_role: 'worker',
+        sender_name: profile.full_name,
+        body,
+      });
+      throwIfError(error);
+
+      const { error: threadError } = await supabase
+        .from('support_chat_threads')
+        .update({ unread_for_admin: true, unread_for_worker: false, updated_at: new Date().toISOString() })
+        .eq('id', thread.id);
+      throwIfError(threadError);
+
       setChatInput('');
-      refreshChat();
+      await refreshChat();
     } catch (error) {
-      toast.error('Failed to send message');
+      toast.error(error instanceof Error ? error.message : 'Failed to send message');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -116,18 +211,11 @@ export function SupportPage() {
         <div className="space-y-2">
           {FAQS.map((faq, i) => (
             <div key={i}>
-              <button
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                className="w-full flex items-center justify-between p-3 rounded text-left transition-all duration-200 hover:bg-white/5"
-              >
+              <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between p-3 rounded text-left transition-all duration-200 hover:bg-white/5">
                 <p className="font-medium text-cream text-sm">{faq.q}</p>
                 <ChevronRight size={16} className={`text-cream/50 transition-transform flex-shrink-0 ml-2 ${openFaq === i ? 'rotate-90' : ''}`} />
               </button>
-              {openFaq === i && (
-                <div className="px-3 pb-3">
-                  <p className="text-sm text-cream/50 leading-relaxed">{faq.a}</p>
-                </div>
-              )}
+              {openFaq === i && <div className="px-3 pb-3"><p className="text-sm text-cream/50 leading-relaxed">{faq.a}</p></div>}
               {i < FAQS.length - 1 && <div className="divider" />}
             </div>
           ))}
@@ -150,12 +238,8 @@ export function SupportPage() {
           ))}
         </div>
         <div className="mt-4 pt-4 border-t border-white/8 flex items-center gap-4 text-xs text-cream/50">
-          <a href="mailto:support@paybridge.work" className="flex items-center gap-1.5 hover:text-cream">
-            <Mail size={13} /> support@paybridge.work
-          </a>
-          <a href="mailto:compliance@paybridge.work" className="flex items-center gap-1.5 hover:text-red-400">
-            <AlertTriangle size={13} /> compliance@paybridge.work
-          </a>
+          <a href="mailto:support@paybridge.work" className="flex items-center gap-1.5 hover:text-cream"><Mail size={13} /> support@paybridge.work</a>
+          <a href="mailto:compliance@paybridge.work" className="flex items-center gap-1.5 hover:text-red-400"><AlertTriangle size={13} /> compliance@paybridge.work</a>
         </div>
       </Card>
 
@@ -165,9 +249,7 @@ export function SupportPage() {
           <Textarea label="Message" value={ticket.message} onChange={e => setTicket(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue in detail..." rows={5} />
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" onClick={() => setShowTicket(false)}>Cancel</Button>
-            <Button className="flex-1" onClick={submitTicket} disabled={!ticket.subject || !ticket.message || !profile}>
-              Submit Ticket
-            </Button>
+            <Button className="flex-1" onClick={submitTicket} loading={busy} disabled={!ticket.subject || !ticket.message || !profile}>Submit Ticket</Button>
           </div>
         </div>
       </Modal>
@@ -181,9 +263,7 @@ export function SupportPage() {
           <Textarea label="Describe the incident" value={incident.description} onChange={e => setIncident(p => ({ ...p, description: e.target.value }))} placeholder="What happened? Include any suspicious instructions received." rows={5} />
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" onClick={() => setShowIncident(false)}>Cancel</Button>
-            <Button variant="danger" className="flex-1" onClick={submitIncident} disabled={!incident.description || !profile}>
-              Submit Incident Report
-            </Button>
+            <Button variant="danger" className="flex-1" onClick={submitIncident} loading={busy} disabled={!incident.description || !profile}>Submit Incident Report</Button>
           </div>
         </div>
       </Modal>
@@ -194,9 +274,7 @@ export function SupportPage() {
             {chatMessages.length === 0 && (
               <div className="flex justify-start">
                 <div className="flex max-w-[85%] gap-2 flex-row">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1 bg-white/10">
-                    <Headset size={12} className="text-cream" />
-                  </div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1 bg-white/10"><Headset size={12} className="text-cream" /></div>
                   <div className="p-3 rounded-lg text-sm bg-white/10 text-cream rounded-tl-none">Hello. How can we help today?</div>
                 </div>
               </div>
@@ -209,22 +287,14 @@ export function SupportPage() {
                     <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1" style={{ background: isWorker ? '#C9A84C' : 'rgba(255,255,255,0.1)' }}>
                       {isWorker ? <MessageSquare size={12} className="text-[#0B132F]" /> : <Headset size={12} className="text-cream" />}
                     </div>
-                    <div className={`p-3 rounded-lg text-sm ${isWorker ? 'bg-gold text-[#0B132F] rounded-tr-none' : 'bg-white/10 text-cream rounded-tl-none'}`}>
-                      {msg.body}
-                    </div>
+                    <div className={`p-3 rounded-lg text-sm ${isWorker ? 'bg-gold text-[#0B132F] rounded-tr-none' : 'bg-white/10 text-cream rounded-tl-none'}`}>{msg.body}</div>
                   </div>
                 </div>
               );
             })}
           </div>
           <div className="pt-3 border-t border-white/10 mt-auto">
-            <MessageInputBar
-              value={chatInput}
-              onChange={setChatInput}
-              onSend={handleSendChatMessage}
-              placeholder="Type your message..."
-              disabled={!profile}
-            />
+            <MessageInputBar value={chatInput} onChange={setChatInput} onSend={handleSendChatMessage} placeholder="Type your message..." disabled={!profile || busy} />
           </div>
         </div>
       </Modal>
@@ -233,4 +303,3 @@ export function SupportPage() {
 }
 
 export default SupportPage;
-

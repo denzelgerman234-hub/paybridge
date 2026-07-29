@@ -166,7 +166,7 @@ begin
       new.id, profile_name, coalesce(new.email, ''), profile_phone, profile_country,
       app_city, app_occ, app_why, app_bank, app_methods, app_notes
     )
-    on conflict (worker_id) do nothing;
+    on conflict (worker_id) where worker_id is not null do nothing;
   end if;
 
   return new;

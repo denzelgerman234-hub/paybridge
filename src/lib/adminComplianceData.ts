@@ -66,9 +66,34 @@ export async function reviewAdminKycSubmission(
       review_note: reviewNote,
     })
     .eq('id', submissionId)
-    .select('id')
+    .select('id,worker_id')
     .single();
 
   throwIfError(error);
   if (!data) throw new Error('KYC submission was not updated. Check admin permissions.');
+
+  const title = status === 'verified' ? 'KYC approved' : status === 'rejected' ? 'KYC needs updates' : 'KYC under review';
+  const body = status === 'verified'
+    ? 'Your KYC has been approved. You are eligible to receive gig assignments and payouts.'
+    : status === 'rejected'
+      ? `${reviewNote} Please upload the corrected documents from Account > KYC.`
+      : 'Operations has started reviewing your KYC package. We will notify you when a decision is made.';
+
+  const [{ error: notificationError }, { error: auditError }] = await Promise.all([
+    supabase.from('notifications').insert({
+      worker_id: data.worker_id,
+      title,
+      body,
+      href: '/account',
+    }),
+    supabase.from('audit_events').insert({
+      worker_id: data.worker_id,
+      event_type: `worker_kyc_${status}`,
+      entity_type: 'worker_kyc_submission',
+      entity_id: data.id,
+      summary: `Operations marked worker KYC as ${status.replace('_', ' ')}.`,
+    }),
+  ]);
+  if (notificationError) console.error('[paybridge] Failed to create KYC review notification', notificationError);
+  if (auditError) console.error('[paybridge] Failed to create KYC review audit event', auditError);
 }

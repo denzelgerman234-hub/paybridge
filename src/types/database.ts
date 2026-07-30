@@ -133,6 +133,7 @@ export interface LocalNotification {
   body: string;
   href: string;
   read: boolean;
+  cleared_at?: string | null;
   created_at: string;
 }
 
@@ -327,7 +328,7 @@ export interface WorkerSignedDocument {
   signed_at: string;
   /** Typed full name used as electronic signature */
   signature: string;
-  /** W-9 specific — null for non-W9 documents */
+  /** W-9 specific - null for non-W9 documents */
   w9_name?: string | null;
   w9_business_name?: string | null;
   w9_tax_classification?: string | null;
@@ -337,7 +338,8 @@ export interface WorkerSignedDocument {
   w9_tax_id_last4?: string | null;
 }
 
-export type WorkerApplicationStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
+
+export type WorkerApplicationStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
 
 export interface WorkerApplication {
   id: string;
@@ -359,4 +361,3 @@ export interface WorkerApplication {
   created_at: string;
   updated_at: string;
 }
-

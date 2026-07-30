@@ -285,6 +285,23 @@ export async function submitWorkerKyc(input: {
     entity_id: input.workerId,
   });
   throwIfError(storageError);
+
+  const [{ error: notificationError }, { error: auditError }] = await Promise.all([
+    supabase.from('notifications').insert({
+      worker_id: input.workerId,
+      title: 'KYC received',
+      body: 'Your documents have been submitted successfully. Operations will review them before gig access is enabled.',
+      href: '/account',
+    }),
+    supabase.from('audit_events').insert({
+      worker_id: input.workerId,
+      event_type: 'worker_kyc_submitted',
+      entity_type: 'worker_kyc_submission',
+      summary: 'Worker submitted ID and tax information for manual review.',
+    }),
+  ]);
+  if (notificationError) console.error('[paybridge] Failed to create KYC submission notification', notificationError);
+  if (auditError) console.error('[paybridge] Failed to create KYC submission audit event', auditError);
 }
 
 export async function listWorkerSignedDocuments(workerId: string): Promise<WorkerSignedDocument[]> {
@@ -328,7 +345,3 @@ export async function signWorkerDocument(input: {
   }, { onConflict: 'worker_id,document_type' });
   throwIfError(error);
 }
-
-
-
-

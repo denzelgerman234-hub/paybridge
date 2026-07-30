@@ -31,6 +31,7 @@ import { ApplicationStatus, MOCK_APPLICATIONS, WorkerApplication } from './admin
 
 const STORAGE_KEY = 'paybridge.local.operational.v1';
 const DB_CHANGE_EVENT = 'paybridge-local-db-change';
+const KYC_REMINDER_HOURS = 12;
 
 const now = () => new Date().toISOString();
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 3600 * 1000).toISOString();
@@ -429,7 +430,7 @@ function addAudit(state: LocalDbState, event: Omit<LocalAuditEvent, 'id' | 'crea
 }
 
 function addNotification(state: LocalDbState, event: Omit<LocalNotification, 'id' | 'created_at' | 'read'>) {
-  state.notifications.unshift({ id: id('notif'), created_at: now(), read: false, ...event });
+  state.notifications.unshift({ id: id('notif'), created_at: now(), read: false, cleared_at: null, ...event });
 }
 
 function addAdminNotification(state: LocalDbState, event: Omit<AdminNotification, 'id' | 'created_at' | 'read'>) {
@@ -523,8 +524,44 @@ export const localDb = {
   listNotifications(workerId?: string) {
     const state = load();
     return state.notifications
-      .filter(notification => !workerId || notification.worker_id === workerId)
+      .filter(notification => (!workerId || notification.worker_id === workerId) && !notification.cleared_at)
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  },
+
+  ensureKycReminder(workerId: string) {
+    return mutate(state => {
+      const latestSubmission = state.kyc_submissions
+        .filter(item => item.worker_id === workerId)
+        .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0] ?? null;
+
+      if (latestSubmission && ['submitted', 'in_review', 'verified'].includes(latestSubmission.status)) return;
+
+      const reminderTitles = ['Complete your KYC to unlock gigs', 'KYC updates required', 'KYC needs updates'];
+      const latestKycNotice = state.notifications
+        .filter(notification => notification.worker_id === workerId && reminderTitles.includes(notification.title))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+      const anchor = latestSubmission?.reviewed_at ?? latestKycNotice?.created_at ?? null;
+      const nextAllowedAt = anchor ? new Date(anchor).getTime() + KYC_REMINDER_HOURS * 60 * 60 * 1000 : 0;
+
+      if (Date.now() < nextAllowedAt) return;
+
+      if (latestSubmission?.status === 'rejected') {
+        addNotification(state, {
+          worker_id: workerId,
+          title: 'KYC updates required',
+          body: 'Your KYC package needs updated documents before you can receive gigs. Please review the feedback and resubmit from Account > KYC.',
+          href: '/account',
+        });
+        return;
+      }
+
+      addNotification(state, {
+        worker_id: workerId,
+        title: 'Complete your KYC to unlock gigs',
+        body: 'Please submit your identity document and tax details so Operations can verify your account. Verified workers can receive gig assignments and payouts.',
+        href: '/account',
+      });
+    });
   },
 
   listAdminNotifications() {
@@ -777,8 +814,8 @@ export const localDb = {
 
       addNotification(state, {
         worker_id: input.workerId,
-        title: 'KYC submitted',
-        body: 'Your identity package is waiting for manual Operations review.',
+        title: 'KYC received',
+        body: 'Your documents have been submitted successfully. Operations will review them before gig access is enabled.',
         href: '/account',
       });
       addAdminNotification(state, {
@@ -831,7 +868,11 @@ export const localDb = {
       addNotification(state, {
         worker_id: submission.worker_id,
         title: status === 'verified' ? 'KYC approved' : status === 'rejected' ? 'KYC needs updates' : 'KYC under review',
-        body: submission.review_note,
+        body: status === 'verified'
+          ? 'Your KYC has been approved. You are eligible to receive gig assignments and payouts.'
+          : status === 'rejected'
+            ? submission.review_note + ' Please upload the corrected documents from Account > KYC.'
+            : 'Operations has started reviewing your KYC package. We will notify you when a decision is made.',
         href: '/account',
       });
       addAudit(state, {
@@ -965,7 +1006,7 @@ export const localDb = {
   }) {
     return mutate(state => {
       const worker = state.workers.find(w => w.id === input.workerId);
-      // Upsert — one record per worker per document type
+      // Upsert - one record per worker per document type
       const existing = state.signed_documents.find(
         d => d.worker_id === input.workerId && d.document_type === input.documentType,
       );
@@ -1080,6 +1121,17 @@ export const localDb = {
     return mutate(state => {
       state.notifications.forEach(notification => {
         if (notification.worker_id === workerId) notification.read = true;
+      });
+    });
+  },
+
+  clearNotifications(workerId: string) {
+    return mutate(state => {
+      state.notifications.forEach(notification => {
+        if (notification.worker_id === workerId && !notification.cleared_at) {
+          notification.read = true;
+          notification.cleared_at = now();
+        }
       });
     });
   },
@@ -1591,6 +1643,3 @@ export const localDb = {
     });
   },
 };
-
-
-

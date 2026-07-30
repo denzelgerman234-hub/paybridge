@@ -8,7 +8,7 @@ import { formatRelativeTime } from '../../lib/utils';
 import {
   LayoutDashboard, Briefcase, Archive, Award, BookOpen,
   Activity, Settings, HelpCircle, Bell, User, LogOut,
-  ChevronDown, Menu, X, Shield, CheckCheck, Inbox, Circle,
+  ChevronDown, Menu, X, Shield, CheckCheck, Inbox, Circle, Trash2,
 } from 'lucide-react';
 
 const navItems = [
@@ -34,7 +34,7 @@ const SAGE      = '#7DC99A';
 export function Navbar() {
   const { profile, signOut } = useAuth();
   const location = useLocation();
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications(profile?.id);
+  const { notifications, unreadCount, markRead, markAllRead, clearNotifications } = useNotifications(profile?.id);
   const [showProfile, setShowProfile] = useState(false);
   const [showMobile, setShowMobile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -120,14 +120,25 @@ export function Navbar() {
                           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: CREAM, fontFamily: "'Space Grotesk', sans-serif" }}>Notifications</p>
                           <p className="text-[11px]" style={{ color: CREAM_DIM }}>{unreadCount} unread</p>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-ghost !px-2 !py-1 text-[11px]"
-                          disabled={unreadCount === 0}
-                          onClick={markAllRead}
-                        >
-                          <CheckCheck size={13} /> Mark read
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            className="btn-ghost !px-2 !py-1 text-[11px]"
+                            disabled={unreadCount === 0}
+                            onClick={markAllRead}
+                          >
+                            <CheckCheck size={13} /> Mark read
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost !px-2 !py-1 text-[11px]"
+                            disabled={notifications.length === 0}
+                            onClick={clearNotifications}
+                            title="Clear notification list"
+                          >
+                            <Trash2 size={13} /> Clear
+                          </button>
+                        </div>
                       </div>
 
                       {notifications.length === 0 ? (

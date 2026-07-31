@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { HelpCircle, MessageSquare, AlertTriangle, Phone, Mail, ExternalLink, ChevronRight, Headset } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { subscribeToTableRefresh } from '../lib/realtime';
 import { useAuth } from '../hooks/useAuth';
 import { SupportChatMessage, SupportChatThread } from '../types/database';
 
@@ -75,7 +76,19 @@ export function SupportPage() {
     }
   }
 
-  useEffect(() => { void refreshChat(); }, [profile?.id]);
+  useEffect(() => {
+    void refreshChat();
+    const workerId = profile?.id;
+    if (!workerId) return undefined;
+    return subscribeToTableRefresh(
+      `worker-support-chat:${workerId}`,
+      [
+        { table: 'support_chat_threads', filter: `worker_id=eq.${workerId}` },
+        { table: 'support_chat_messages' },
+      ],
+      () => { void refreshChat(); },
+    );
+  }, [profile?.id]);
 
   async function submitTicket() {
     if (!profile) return;

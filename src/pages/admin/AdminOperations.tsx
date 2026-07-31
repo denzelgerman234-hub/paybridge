@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { RiArrowLeftLine, RiBriefcaseLine, RiCheckboxCircleLine, RiMessage2Line, RiTimeLine } from 'react-icons/ri';
 import { supabase } from '../../lib/supabase';
+import { subscribeToTableRefresh } from '../../lib/realtime';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../lib/utils';
 import { MessageInputBar, Attachment } from '../../components/ui/MessageInputBar';
 import { OperationMessage, OperationThread, WorkerDisbursement, WorkerGig, WorkerProfile } from '../../types/database';
@@ -56,8 +57,8 @@ export function AdminOperations() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  async function refresh() {
-    setLoading(true);
+  async function refresh(showLoading = true) {
+    if (showLoading) setLoading(true);
     try {
       const [threadsResult, gigsResult, workersResult, messagesResult, disbursementsResult] = await Promise.all([
         supabase.from('operation_threads').select('*').order('updated_at', { ascending: false }),
@@ -111,7 +112,18 @@ export function AdminOperations() {
     }
   }
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+    return subscribeToTableRefresh(
+      'admin-operation-threads',
+      [
+        { table: 'operation_threads' },
+        { table: 'operation_messages' },
+        { table: 'worker_disbursements' },
+      ],
+      () => { void refresh(false); },
+    );
+  }, []);
 
   const selected = useMemo(() => rooms.find(room => room.id === selectedId) ?? rooms[0] ?? null, [rooms, selectedId]);
   const activeRooms = rooms.filter(room => room.status === 'open').length;

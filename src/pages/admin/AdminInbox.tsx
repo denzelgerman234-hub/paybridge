@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { RiAlertLine, RiCheckboxCircleLine, RiInboxLine, RiMessage2Line } from 'react-icons/ri';
 import { supabase } from '../../lib/supabase';
+import { subscribeToTableRefresh } from '../../lib/realtime';
 import { formatDate, formatRelativeTime } from '../../lib/utils';
 import { MessageInputBar, Attachment } from '../../components/ui/MessageInputBar';
 import { SupportChatMessage, SupportChatThread, SupportTicket, WorkerGig, WorkerProfile } from '../../types/database';
@@ -51,8 +52,8 @@ export function AdminInbox() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  async function refresh() {
-    setLoading(true);
+  async function refresh(showLoading = true) {
+    if (showLoading) setLoading(true);
     try {
       const [ticketsResult, threadsResult, messagesResult, workersResult, gigsResult] = await Promise.all([
         supabase.from('support_tickets').select('*').order('updated_at', { ascending: false }),
@@ -103,7 +104,18 @@ export function AdminInbox() {
     }
   }
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+    return subscribeToTableRefresh(
+      'admin-support-inbox',
+      [
+        { table: 'support_tickets' },
+        { table: 'support_chat_threads' },
+        { table: 'support_chat_messages' },
+      ],
+      () => { void refresh(false); },
+    );
+  }, []);
 
   const openTickets = tickets.filter(ticket => ticket.status !== 'resolved').length;
   const unreadChats = threads.filter(thread => thread.unread_for_admin).length;

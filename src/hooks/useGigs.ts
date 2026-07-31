@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { localDb } from '../lib/localDb';
 import { supabase, supabaseConfig } from '../lib/supabase';
+import { subscribeToTableRefresh } from '../lib/realtime';
 import { GigApplication, OperationMessage, OperationThread, WorkerDisbursement, WorkerGig } from '../types/database';
 
 export type GigWithApplication = WorkerGig & { application?: GigApplication | null };
@@ -46,8 +47,8 @@ export function useGigs(workerId?: string) {
   const [loading, setLoading] = useState(true);
   const isLocal = useMemo(useLocalGigs, []);
 
-  async function refreshFromSupabase(cancelledRef?: { current: boolean }) {
-    setLoading(true);
+  async function refreshFromSupabase(cancelledRef?: { current: boolean }, showLoading = true) {
+    if (showLoading) setLoading(true);
 
     const { data: gigRows, error: gigsError } = await supabase
       .from('worker_gigs')
@@ -172,7 +173,18 @@ export function useGigs(workerId?: string) {
     }
 
     void refreshFromSupabase(cancelledRef);
-    return () => { cancelledRef.current = true; };
+    const unsubscribe = subscribeToTableRefresh(
+      `worker-gig-threads:${workerId ?? 'anonymous'}`,
+      [
+        ...(workerId ? [{ table: 'operation_threads', filter: `worker_id=eq.${workerId}` }] : []),
+        { table: 'operation_messages' },
+      ],
+      () => { void refreshFromSupabase(cancelledRef, false); },
+    );
+    return () => {
+      cancelledRef.current = true;
+      unsubscribe();
+    };
   }, [workerId, isLocal]);
 
   async function applyToGig(gigId: string, note: string) {

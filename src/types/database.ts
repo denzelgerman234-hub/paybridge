@@ -313,6 +313,24 @@ export interface NotificationPreference {
   push_disbursement: boolean;
 }
 
+export type NotificationDeliveryChannel = 'email' | 'sms';
+export type NotificationDeliveryStatus = 'queued' | 'sent' | 'failed' | 'skipped';
+
+export interface NotificationDeliveryEvent {
+  id: string;
+  worker_id: string;
+  channel: NotificationDeliveryChannel;
+  preference_key: keyof Omit<NotificationPreference, 'id' | 'worker_id'>;
+  title: string;
+  body: string;
+  href: string | null;
+  status: NotificationDeliveryStatus;
+  provider_message_id: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type LegalDocumentType =
   | 'worker_agreement'
   | 'irs_w9'

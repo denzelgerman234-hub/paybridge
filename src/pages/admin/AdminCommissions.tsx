@@ -5,6 +5,7 @@ import { supabase, supabaseConfig } from '../../lib/supabase';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { BadgeIcon } from '../../components/ui/Badge';
 import { CommissionLedger, WorkerGig, WorkerProfile } from '../../types/database';
+import { sendWorkerNotification } from '../../lib/notificationDelivery';
 import toast from 'react-hot-toast';
 
 type DisplayWorker = Partial<WorkerProfile> & { id: string; full_name: string; badge: WorkerProfile['badge']; email?: string | null };
@@ -151,6 +152,16 @@ export function AdminCommissions() {
           .update({ status: 'settled', settled_at: new Date().toISOString() })
           .eq('id', id);
         if (error) throw error;
+        const commission = commissions.find(item => item.id === id);
+        if (commission) {
+          await sendWorkerNotification({
+            workerId: commission.worker_id,
+            kind: 'fee_record_update',
+            title: 'Worker fee record updated',
+            body: `${commission.gig?.client_name ?? 'A gig'} worker fee was marked settled for ${formatCurrency(commission.amount)}.`,
+            href: '/wallet',
+          });
+        }
         await refreshFromSupabase();
       }
       toast.success('Worker fee marked as settled');

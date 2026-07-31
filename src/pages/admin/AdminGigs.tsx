@@ -5,6 +5,7 @@ import { GigApplication, WorkerDisbursement, WorkerGig, WorkerProfile } from '..
 import { formatCurrency, formatRelativeTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { DISBURSEMENT_METHODS } from '../../lib/constants';
+import { notifyEligibleWorkersOfNewGig, sendWorkerNotification } from '../../lib/notificationDelivery';
 
 const EMPTY_GIG: Partial<WorkerGig> = {
   client_name: '', client_contact: '', total_principal: 0, commission_rate: 10,
@@ -146,6 +147,8 @@ export function AdminGigs() {
         .single();
       throwIfError(error);
 
+      await notifyEligibleWorkersOfNewGig(gig as WorkerGig);
+
       if (cleanBeneficiaries.length > 0) {
         const { error: beneficiaryError } = await supabase.from('gig_beneficiaries').insert(
           cleanBeneficiaries.map(item => ({
@@ -196,6 +199,14 @@ export function AdminGigs() {
       });
       throwIfError(fundingError);
 
+      await sendWorkerNotification({
+        workerId: gig.worker_id,
+        kind: 'disbursement_update',
+        title: 'Principal funding marked sent',
+        body: `${gig.client_name}: confirm funds are visible in your dedicated account before sending.`,
+        href: `/gigs/${gig.id}`,
+      });
+
       setShowFund(null);
       setFundRef('');
       await refresh();
@@ -212,8 +223,7 @@ export function AdminGigs() {
     const { data: existing, error: existingError } = await supabase
       .from('worker_disbursements')
       .select('id')
-      .eq('gig_id', gigId)
-      .limit(1);
+      .eq('gig_id', gigId);
     throwIfError(existingError);
     if ((existing ?? []).length > 0) return;
 
@@ -312,6 +322,13 @@ export function AdminGigs() {
       throwIfError(messageError);
 
       await materializeBeneficiaries(app.gig_id, app.worker_id);
+      await sendWorkerNotification({
+        workerId: app.worker_id,
+        kind: 'disbursement_update',
+        title: 'Gig application accepted',
+        body: `${app.gig?.client_name ?? 'Your gig'} is assigned to you. Chat with Operations before taking action.`,
+        href: `/gigs/${app.gig_id}`,
+      });
       await refresh();
       toast.success('Gig assigned and Operations room opened');
     } catch (error) {

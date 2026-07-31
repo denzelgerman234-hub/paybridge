@@ -37,6 +37,7 @@ const now = () => new Date().toISOString();
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 3600 * 1000).toISOString();
 const daysAhead = (n: number) => new Date(Date.now() + n * 24 * 3600 * 1000).toISOString();
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+const BADGE_ORDER: BadgeTier[] = ['trainee', 'associate', 'senior', 'expert', 'master'];
 
 type CreateGigBeneficiary = Pick<WorkerDisbursement, 'recipient_name' | 'amount' | 'method' | 'destination'>;
 type CreateGigInput = Omit<WorkerGig, 'id' | 'worker_id' | 'commission_amount' | 'status' | 'accepted_at' | 'funded_at' | 'completed_at' | 'funded' | 'funding_status' | 'operations_specialist' | 'created_at' | 'updated_at'> & {
@@ -431,6 +432,17 @@ function addAudit(state: LocalDbState, event: Omit<LocalAuditEvent, 'id' | 'crea
 
 function addNotification(state: LocalDbState, event: Omit<LocalNotification, 'id' | 'created_at' | 'read'>) {
   state.notifications.unshift({ id: id('notif'), created_at: now(), read: false, cleared_at: null, ...event });
+}
+
+function addPreferredNotification(
+  state: LocalDbState,
+  event: Omit<LocalNotification, 'id' | 'created_at' | 'read'>,
+  preferenceKey: 'push_new_gig' | 'push_disbursement',
+) {
+  const preference = state.notification_preferences.find(item => item.worker_id === event.worker_id)
+    ?? defaultNotificationPreferences(event.worker_id);
+  if (!preference[preferenceKey]) return;
+  addNotification(state, event);
 }
 
 function addAdminNotification(state: LocalDbState, event: Omit<AdminNotification, 'id' | 'created_at' | 'read'>) {
@@ -1359,12 +1371,12 @@ export const localDb = {
         gig.operations_specialist = specialistName;
         gig.updated_at = now();
         const thread = ensureThread(state, gig, application.worker_id, specialistName);
-        addNotification(state, {
+        addPreferredNotification(state, {
           worker_id: application.worker_id,
           title: 'Gig application accepted',
           body: `${gig.client_name} is assigned to you. Chat with ${specialistName}, your Operations Specialist.`,
           href: `/gigs/${gig.id}`,
-        });
+        }, 'push_disbursement');
         addAudit(state, {
           worker_id: application.worker_id,
           event_type: 'gig_application_accepted',
@@ -1403,6 +1415,18 @@ export const localDb = {
         updated_at: now(),
       };
       state.gigs.unshift(gig);
+      state.workers
+        .filter(worker => worker.onboarding_completed)
+        .filter(worker => worker.account_health === 'healthy')
+        .filter(worker => !gig.badge_required || BADGE_ORDER.indexOf(worker.badge) >= BADGE_ORDER.indexOf(gig.badge_required))
+        .forEach(worker => {
+          addPreferredNotification(state, {
+            worker_id: worker.id,
+            title: 'New gig available',
+            body: `${gig.client_name} is open for eligible workers. Review the principal, deadline, and disbursement methods before applying.`,
+            href: `/gigs/${gig.id}`,
+          }, 'push_new_gig');
+        });
       beneficiaries.slice(0, 5).forEach(beneficiary => {
         state.worker_disbursements.push({
           id: id('disb'),
@@ -1450,12 +1474,12 @@ export const localDb = {
         body: `Funding status: deposit sent and marked FUNDED. Reference: ${reference}. Confirm funds are visible before disbursing.`,
         created_at: now(),
       });
-      addNotification(state, {
+      addPreferredNotification(state, {
         worker_id: gig.worker_id,
         title: 'Principal funding marked sent',
         body: `${gig.client_name}: confirm funds are visible in your dedicated account before sending.`,
         href: `/gigs/${gig.id}`,
-      });
+      }, 'push_disbursement');
       addAudit(state, {
         worker_id: gig.worker_id,
         event_type: 'principal_funded',
@@ -1589,6 +1613,14 @@ export const localDb = {
       disbursement.status = verified ? 'verified' : 'proof_rejected';
       disbursement.verified_at = verified ? now() : null;
       disbursement.notes = note || (verified ? 'Verified by Operations.' : 'Proof rejected; resubmission required.');
+      addPreferredNotification(state, {
+        worker_id: disbursement.worker_id,
+        title: verified ? 'Disbursement proof verified' : 'Disbursement proof needs correction',
+        body: verified
+          ? `${disbursement.recipient_name} proof was verified by Operations.`
+          : `${disbursement.recipient_name} proof needs correction before approval.`,
+        href: `/gigs/${disbursement.gig_id}`,
+      }, 'push_disbursement');
       if (gig) {
         const all = state.worker_disbursements.filter(d => d.gig_id === gig.id);
         if (all.length > 0 && all.every(d => d.status === 'verified')) {
@@ -1596,12 +1628,12 @@ export const localDb = {
           gig.completed_at = now();
           gig.funding_status = 'verified_complete';
           gig.updated_at = now();
-          if (gig.worker_id) addNotification(state, {
+          if (gig.worker_id) addPreferredNotification(state, {
             worker_id: gig.worker_id,
             title: 'Gig completed',
             body: `${gig.client_name} is complete. Your fee is included in the transaction records for this gig.`,
             href: `/gigs/${gig.id}`,
-          });
+          }, 'push_disbursement');
           if (gig.worker_id && !state.commission_ledger.some(c => c.gig_id === gig.id)) {
             state.commission_ledger.unshift({
               id: id('fee'),

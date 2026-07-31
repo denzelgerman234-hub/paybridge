@@ -4,6 +4,7 @@ import { RiCheckboxCircleLine, RiCloseCircleLine, RiDownloadLine, RiSearchLine }
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { WorkerDisbursement, WorkerGig, WorkerProfile } from '../../types/database';
+import { sendWorkerNotification } from '../../lib/notificationDelivery';
 
 type DisbursementProof = {
   id: string;
@@ -152,6 +153,13 @@ export function AdminDisbursements() {
           settled_at: null,
         }, { onConflict: 'worker_id,gig_id' });
         throwIfError(commissionError);
+        await sendWorkerNotification({
+          workerId: disbursement.gig.worker_id,
+          kind: 'fee_record_update',
+          title: 'Worker fee record updated',
+          body: `${disbursement.gig.client_name} is complete and your worker fee record is ready for settlement tracking.`,
+          href: '/wallet',
+        });
       }
       return;
     }
@@ -193,6 +201,15 @@ export function AdminDisbursements() {
       }
 
       await syncGigAfterReview(disbursement, verified);
+      await sendWorkerNotification({
+        workerId: disbursement.worker_id,
+        kind: 'disbursement_update',
+        title: verified ? 'Disbursement proof verified' : 'Disbursement proof needs correction',
+        body: verified
+          ? `${disbursement.recipient_name} proof was verified by Operations.`
+          : `${disbursement.recipient_name} proof needs correction before approval.`,
+        href: `/gigs/${disbursement.gig_id}`,
+      });
       await refresh();
       toast.success(verified ? 'Proof verified' : 'Proof returned for correction');
     } catch (error) {

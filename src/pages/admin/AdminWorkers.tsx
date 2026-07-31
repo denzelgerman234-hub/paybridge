@@ -5,6 +5,7 @@ import type { WorkerProfile, AccountHealthStatus, BadgeTier, WorkerApplication }
 import { BADGE_TIERS } from '../../lib/constants';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import { sendWorkerNotification } from '../../lib/notificationDelivery';
 
 import { BadgeIcon } from '../../components/ui/Badge';
 
@@ -60,6 +61,19 @@ export function AdminWorkers() {
       
       // Optimistic update
       setWorkers(curr => curr.map(w => w.id === id ? { ...w, ...fields } : w));
+
+      if (fields.account_health) {
+        const nextHealth = fields.account_health;
+        await sendWorkerNotification({
+          workerId: id,
+          kind: 'compliance_alert',
+          title: nextHealth === 'healthy' ? 'Compliance alert cleared' : 'Compliance alert',
+          body: nextHealth === 'healthy'
+            ? 'Your account health has been cleared by Operations.'
+            : `Operations updated your account health to ${nextHealth}. Review your account or contact support if you need help.`,
+          href: '/account',
+        });
+      }
     } catch (error: any) {
       toast.error(error?.message || 'Worker update failed');
       // Revert on failure

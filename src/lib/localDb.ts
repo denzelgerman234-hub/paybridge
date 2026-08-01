@@ -4,6 +4,8 @@ import {
   DisbursementStatus,
   GigApplication,
   GigApplicationStatus,
+  WorkerApplication,
+  WorkerApplicationStatus,
   GigStatus,
   LegalDocumentType,
   LocalAuditEvent,
@@ -27,7 +29,6 @@ import {
   WorkerProfile,
 } from '../types/database';
 import { MOCK_USER_ID } from './mockData';
-import { ApplicationStatus, MOCK_APPLICATIONS, WorkerApplication } from './adminMockData';
 
 const STORAGE_KEY = 'paybridge.local.operational.v1';
 const DB_CHANGE_EVENT = 'paybridge-local-db-change';
@@ -287,7 +288,7 @@ function seedState(): LocalDbState {
   return {
     schema_version: 1,
     workers,
-    worker_applications: MOCK_APPLICATIONS,
+    worker_applications: [],
     gigs,
     gig_applications: [],
     worker_disbursements,
@@ -1227,7 +1228,7 @@ export const localDb = {
     });
   },
 
-  listWorkerApplications(status?: ApplicationStatus | 'all') {
+  listWorkerApplications(status?: WorkerApplicationStatus | 'all') {
     const state = load();
     return state.worker_applications
       .filter(application => !status || status === 'all' || application.status === status)
@@ -1281,7 +1282,7 @@ export const localDb = {
     });
   },
 
-  reviewWorkerApplication(applicationId: string, status: ApplicationStatus, reviewNote: string) {
+  reviewWorkerApplication(applicationId: string, status: WorkerApplicationStatus, reviewNote: string) {
     return mutate(state => {
       const application = state.worker_applications.find(item => item.id === applicationId);
       if (!application) throw new Error('Application not found');

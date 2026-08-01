@@ -272,14 +272,13 @@ export const supabase = {
         };
       }
 
-      const isAdminEmail = email.trim().toLowerCase() === 'admin@paybridge.work';
       const verifiedUser = _verifiedUsers.get(email);
       _session = {
         user: {
           id: verifiedUser?.id ?? MOCK_USER_ID,
           email,
-          app_metadata: isAdminEmail ? { role: 'admin' } : {},
-          user_metadata: { full_name: isAdminEmail ? 'PayBridge Admin' : 'PayBridge Worker' },
+          app_metadata: {},
+          user_metadata: { full_name: 'PayBridge Worker' },
         },
       };
       // Update the profile's id to match (in case email changed)

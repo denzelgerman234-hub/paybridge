@@ -1,58 +1,105 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RiAlertLine, RiFlagLine, RiFileTextLine, RiCheckboxCircleLine, RiCloseLine } from 'react-icons/ri';
-import { MOCK_ALL_WORKERS } from '../../lib/adminMockData';
 import { AdminKycReviewSubmission, listAdminKycSubmissions, reviewAdminKycSubmission } from '../../lib/adminComplianceData';
+import { supabase } from '../../lib/supabase';
 import { formatDate } from '../../lib/utils';
+import { LocalAuditEvent, SupportTicket, WorkerProfile } from '../../types/database';
 import toast from 'react-hot-toast';
 
-
-type IncidentStatus = 'open' | 'investigating' | 'resolved';
-
 type KycReviewSubmission = AdminKycReviewSubmission;
+type FlaggedWorker = Pick<WorkerProfile, 'id' | 'full_name' | 'phone' | 'country' | 'account_health'> & { email?: string | null };
+type IncidentRow = SupportTicket & { worker: FlaggedWorker | null; severity: 'medium' | 'high' };
 
-interface ComplianceIncident {
-  id: string;
-  worker_id: string;
-  gig_id: string | null;
-  type: string;
-  description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: IncidentStatus;
-  reported_at: string;
-  resolved_at: string | null;
-}
-
-const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 3600 * 1000).toISOString();
-
-const INCIDENTS: ComplianceIncident[] = [
-  { id: 'inc-001', worker_id: 'worker-004', gig_id: 'gig-003', type: 'Non-platform contact', description: 'Worker received disbursement instructions via personal WhatsApp from client.', severity: 'medium', status: 'investigating', reported_at: daysAgo(2), resolved_at: null },
-  { id: 'inc-002', worker_id: 'mock-user-001', gig_id: null, type: 'Proof upload delay', description: 'Worker exceeded 24-hour proof upload window for 2 disbursements.', severity: 'low', status: 'resolved', reported_at: daysAgo(7), resolved_at: daysAgo(5) },
-  { id: 'inc-003', worker_id: 'worker-004', gig_id: null, type: 'OFAC flag — false positive', description: 'Recipient name triggered OFAC watchlist partial match. Confirmed false positive after manual review.', severity: 'high', status: 'resolved', reported_at: daysAgo(14), resolved_at: daysAgo(12) },
-];
-
-const SEVERITY_STYLE: Record<string, string> = {
-  low:      'text-sage bg-sage-500/10 border-emerald-500/25',
-  medium:   'text-amber-400 bg-amber-500/10 border-amber-500/25',
-  high:     'text-orange-400 bg-orange-500/10 border-orange-500/25',
-  critical: 'text-red-400 bg-red-500/10 border-red-500/25',
+const SEVERITY_STYLE: Record<IncidentRow['severity'], string> = {
+  medium: 'text-amber-400 bg-amber-500/10 border-amber-500/25',
+  high: 'text-orange-400 bg-orange-500/10 border-orange-500/25',
 };
 
-const AUDIT_LOG = [
-  { id: 'al-001', action: 'Application approved',         target: 'Sofia Reyes',    admin: 'admin-001', at: daysAgo(7) },
-  { id: 'al-002', action: 'Application rejected',         target: 'Kwame Boateng',  admin: 'admin-001', at: daysAgo(12) },
-  { id: 'al-003', action: 'Gig funded',                   target: 'Acme Corp',      admin: 'admin-001', at: daysAgo(29) },
-  { id: 'al-004', action: 'Worker badge upgraded',        target: 'Alex Johnson',   admin: 'admin-001', at: daysAgo(15) },
-  { id: 'al-005', action: 'Account health flagged',       target: 'Priya Sharma',   admin: 'admin-001', at: daysAgo(3) },
-  { id: 'al-006', action: 'Worker fee marked settled',    target: 'James Okonkwo',  admin: 'admin-001', at: daysAgo(1) },
-  { id: 'al-007', action: 'Incident opened',              target: 'inc-001',        admin: 'system',    at: daysAgo(2) },
-];
+function throwIfError(error: any) {
+  if (error) throw error;
+}
+
+function normalizeWorker(row: any): FlaggedWorker {
+  return {
+    id: row.id,
+    full_name: row.full_name,
+    phone: row.phone,
+    country: row.country,
+    account_health: row.account_health,
+    email: row.email ?? null,
+  };
+}
+
+function toIncident(ticket: SupportTicket, worker: FlaggedWorker | null): IncidentRow {
+  return {
+    ...ticket,
+    worker,
+    severity: ticket.priority === 'urgent' ? 'high' : 'medium',
+  };
+}
 
 export function AdminCompliance() {
-  const [incidents, setIncidents] = useState(INCIDENTS);
+  const [incidents, setIncidents] = useState<IncidentRow[]>([]);
+  const [flaggedWorkers, setFlaggedWorkers] = useState<FlaggedWorker[]>([]);
+  const [auditLog, setAuditLog] = useState<LocalAuditEvent[]>([]);
   const [kycSubmissions, setKycSubmissions] = useState<KycReviewSubmission[]>([]);
+  const [loadingCompliance, setLoadingCompliance] = useState(true);
   const [loadingKyc, setLoadingKyc] = useState(true);
   const [reviewingKycId, setReviewingKycId] = useState<string | null>(null);
-  const [selected, setSelected]   = useState<ComplianceIncident | null>(null);
+  const [selected, setSelected] = useState<IncidentRow | null>(null);
+
+  async function refreshComplianceData() {
+    setLoadingCompliance(true);
+    try {
+      const [incidentsResult, workersResult, appsResult, auditResult] = await Promise.all([
+        supabase
+          .from('support_tickets')
+          .select('*')
+          .eq('type', 'incident')
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('worker_profiles')
+          .select('id,full_name,phone,country,account_health')
+          .order('full_name'),
+        supabase
+          .from('worker_applications')
+          .select('worker_id,email'),
+        supabase
+          .from('audit_events')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(25),
+      ]);
+
+      throwIfError(incidentsResult.error);
+      throwIfError(workersResult.error);
+      throwIfError(appsResult.error);
+      throwIfError(auditResult.error);
+
+      const emailByWorker = new Map(
+        ((appsResult.data ?? []) as { worker_id: string | null; email: string }[])
+          .filter(app => app.worker_id)
+          .map(app => [app.worker_id as string, app.email]),
+      );
+      const workers = ((workersResult.data ?? []) as any[]).map(row => ({
+        ...normalizeWorker(row),
+        email: emailByWorker.get(row.id) ?? null,
+      }));
+      const workerById = new Map(workers.map(worker => [worker.id, worker]));
+
+      setFlaggedWorkers(workers.filter(worker => worker.account_health !== 'healthy'));
+      setIncidents(((incidentsResult.data ?? []) as SupportTicket[]).map(ticket => toIncident(ticket, workerById.get(ticket.worker_id) ?? null)));
+      setAuditLog((auditResult.data ?? []) as LocalAuditEvent[]);
+    } catch (error) {
+      console.error('[paybridge] Failed to load compliance data', error);
+      toast.error(error instanceof Error ? error.message : 'Could not load compliance data');
+      setIncidents([]);
+      setFlaggedWorkers([]);
+      setAuditLog([]);
+    } finally {
+      setLoadingCompliance(false);
+    }
+  }
 
   async function refreshKycSubmissions() {
     setLoadingKyc(true);
@@ -66,13 +113,33 @@ export function AdminCompliance() {
   }
 
   useEffect(() => {
+    void refreshComplianceData();
     void refreshKycSubmissions();
   }, []);
 
-  function resolve(id: string) {
-    setIncidents(prev => prev.map(i => i.id === id ? { ...i, status: 'resolved', resolved_at: new Date().toISOString() } : i));
-    toast.success('Incident marked resolved');
-    setSelected(null);
+  async function resolve(id: string) {
+    try {
+      const { error } = await supabase
+        .from('support_tickets')
+        .update({ status: 'resolved', updated_at: new Date().toISOString() })
+        .eq('id', id);
+      throwIfError(error);
+
+      const incident = incidents.find(item => item.id === id);
+      await supabase.from('audit_events').insert({
+        worker_id: incident?.worker_id ?? null,
+        event_type: 'incident_resolved',
+        entity_type: 'support_ticket',
+        entity_id: id,
+        summary: `Compliance incident resolved${incident?.subject ? `: ${incident.subject}` : ''}.`,
+      });
+
+      await refreshComplianceData();
+      toast.success('Incident marked resolved');
+      setSelected(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not resolve incident');
+    }
   }
 
   async function reviewKyc(id: string, status: 'in_review' | 'verified' | 'rejected') {
@@ -85,7 +152,7 @@ export function AdminCompliance() {
     setReviewingKycId(id);
     try {
       await reviewAdminKycSubmission(id, status, note);
-      await refreshKycSubmissions();
+      await Promise.all([refreshKycSubmissions(), refreshComplianceData()]);
       toast.success(status === 'verified' ? 'KYC approved' : status === 'rejected' ? 'KYC marked for update' : 'KYC marked in review');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not update KYC review');
@@ -94,9 +161,9 @@ export function AdminCompliance() {
     }
   }
 
-  const open         = incidents.filter(i => i.status !== 'resolved').length;
-  const flaggedWorkers = MOCK_ALL_WORKERS.filter(w => w.account_health !== 'healthy');
+  const open = incidents.filter(i => i.status !== 'resolved').length;
   const pendingKyc = kycSubmissions.filter(item => item.status === 'submitted' || item.status === 'in_review');
+  const selectedWorker = useMemo(() => selected?.worker ?? null, [selected]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -105,14 +172,13 @@ export function AdminCompliance() {
         <p className="text-cream/50 mt-1">AML monitoring, incident management, and audit trail</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
         {[
-          { label: 'Open Incidents',       value: open,               color: open > 0 ? 'text-red-400' : 'text-sage',  icon: RiAlertLine },
-          { label: 'Flagged Workers',      value: flaggedWorkers.length, color: flaggedWorkers.length > 0 ? 'text-amber-400' : 'text-sage', icon: RiFlagLine },
-          { label: 'KYC Reviews',          value: pendingKyc.length, color: pendingKyc.length > 0 ? 'text-gold' : 'text-sage', icon: RiFileTextLine },
-          { label: 'Total Audit Events',   value: AUDIT_LOG.length,   color: 'text-gold', icon: RiFileTextLine },
-          { label: 'Resolved Incidents',   value: incidents.filter(i=>i.status==='resolved').length, color: 'text-sage', icon: RiCheckboxCircleLine },
+          { label: 'Open Incidents', value: open, color: open > 0 ? 'text-red-400' : 'text-sage', icon: RiAlertLine },
+          { label: 'Flagged Workers', value: flaggedWorkers.length, color: flaggedWorkers.length > 0 ? 'text-amber-400' : 'text-sage', icon: RiFlagLine },
+          { label: 'KYC Reviews', value: pendingKyc.length, color: pendingKyc.length > 0 ? 'text-gold' : 'text-sage', icon: RiFileTextLine },
+          { label: 'Total Audit Events', value: auditLog.length, color: 'text-gold', icon: RiFileTextLine },
+          { label: 'Resolved Incidents', value: incidents.filter(i => i.status === 'resolved').length, color: 'text-sage', icon: RiCheckboxCircleLine },
         ].map(({ label, value, color, icon: Icon }) => (
           <div key={label} className="card p-5">
             <Icon size={18} className={`${color} mb-2`} />
@@ -122,27 +188,25 @@ export function AdminCompliance() {
         ))}
       </div>
 
-      {/* Flagged workers */}
       {flaggedWorkers.length > 0 && (
         <div className="card p-5 border border-amber-500/20">
           <h2 className="font-bold text-cream mb-3 flex items-center gap-2">
             <RiFlagLine size={16} className="text-amber-400" /> Flagged Accounts
           </h2>
           <div className="space-y-2">
-            {flaggedWorkers.map(w => (
-              <div key={w.id} className="flex items-center justify-between p-3 rounded border border-white/8">
+            {flaggedWorkers.map(worker => (
+              <div key={worker.id} className="flex items-center justify-between p-3 rounded border border-white/8">
                 <div>
-                  <p className="font-semibold text-cream text-sm">{w.full_name}</p>
-                  <p className="text-xs text-cream/50">{w.email}</p>
+                  <p className="font-semibold text-cream text-sm">{worker.full_name}</p>
+                  <p className="text-xs text-cream/50">{worker.email || worker.phone || worker.country || 'No contact on file'}</p>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: '#C9A84C', fontFamily: "'Space Grotesk', sans-serif" }}><span style={{color:"#C9A84C",fontSize:16}}>!</span> {w.account_health}</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">{worker.account_health}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* KYC review queue */}
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <div>
@@ -199,7 +263,7 @@ export function AdminCompliance() {
           </div>
         )}
       </div>
-      {/* Incidents */}
+
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <h2 className="font-bold text-cream">Compliance Incidents</h2>
@@ -208,69 +272,72 @@ export function AdminCompliance() {
           </span>
         </div>
         <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-          {incidents.map(inc => {
-            const worker = MOCK_ALL_WORKERS.find(w => w.id === inc.worker_id);
-            return (
-              <div key={inc.id} className="p-5 hover:bg-white/3 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded border ${SEVERITY_STYLE[inc.severity]}`}>
-                        {inc.severity.toUpperCase()}
-                      </span>
-                      <span className="text-xs text-cream/50">{inc.type}</span>
-                      <span className={inc.status === 'resolved' ? 'status-verified' : 'status-pending'}>
-                        {inc.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-cream mb-1">{inc.description}</p>
-                    <p className="text-xs text-cream/50">
-                      Worker: {worker?.full_name} · {formatDate(inc.reported_at)}
-                      {inc.resolved_at && ` · Resolved: ${formatDate(inc.resolved_at)}`}
-                    </p>
+          {loadingCompliance ? (
+            <div className="p-5 text-sm text-cream/50">Loading compliance incidents...</div>
+          ) : incidents.length === 0 ? (
+            <div className="p-5 text-sm text-cream/50">No compliance incidents reported yet.</div>
+          ) : incidents.map(incident => (
+            <div key={incident.id} className="p-5 hover:bg-white/3 transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded border ${SEVERITY_STYLE[incident.severity]}`}>
+                      {incident.severity.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-cream/50">{incident.subject}</span>
+                    <span className={incident.status === 'resolved' ? 'status-verified' : 'status-pending'}>
+                      {incident.status.replace('_', ' ')}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => setSelected(inc)} className="p-1.5 rounded-lg hover:bg-white/8 text-cream/50 hover:text-cream transition-colors" title="View details">
-                      <RiFileTextLine size={14} className="text-cream/50" />
+                  <p className="text-sm text-cream mb-1">{incident.message}</p>
+                  <p className="text-xs text-cream/50">
+                    Worker: {incident.worker?.full_name ?? incident.worker_id} - {formatDate(incident.created_at)}
+                    {incident.status === 'resolved' && ` - Resolved: ${formatDate(incident.updated_at)}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => setSelected(incident)} className="p-1.5 rounded-lg hover:bg-white/8 text-cream/50 hover:text-cream transition-colors" title="View details">
+                    <RiFileTextLine size={14} className="text-cream/50" />
+                  </button>
+                  {incident.status !== 'resolved' && (
+                    <button onClick={() => resolve(incident.id)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-sage border border-emerald-500/30 hover:bg-sage-500/10 transition-colors">
+                      <RiCheckboxCircleLine size={16} className="text-sage" /> Resolve
                     </button>
-                    {inc.status !== 'resolved' && (
-                      <button onClick={() => resolve(inc.id)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-sage border border-emerald-500/30 hover:bg-sage-500/10 transition-colors">
-                        <RiCheckboxCircleLine size={16} className="text-sage" /> Resolve
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Audit trail */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <h2 className="font-bold text-cream">Admin Audit Trail</h2>
-        </div>
-        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-          {AUDIT_LOG.map(entry => (
-            <div key={entry.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-white/3 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
-                <div>
-                  <span className="text-sm font-medium text-cream">{entry.action}</span>
-                  <span className="text-xs text-cream/50 ml-2">→ {entry.target}</span>
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-xs text-cream/50">{formatDate(entry.at)}</p>
-                <p className="text-xs text-cream/50 opacity-60">{entry.admin}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Incident detail panel */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <h2 className="font-bold text-cream">Admin Audit Trail</h2>
+        </div>
+        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+          {loadingCompliance ? (
+            <div className="p-5 text-sm text-cream/50">Loading audit trail...</div>
+          ) : auditLog.length === 0 ? (
+            <div className="p-5 text-sm text-cream/50">No audit events recorded yet.</div>
+          ) : auditLog.map(entry => (
+            <div key={entry.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-white/3 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-medium text-cream">{entry.event_type.replace(/_/g, ' ')}</span>
+                  <span className="text-xs text-cream/50 ml-2">- {entry.summary}</span>
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs text-cream/50">{formatDate(entry.created_at)}</p>
+                <p className="text-xs text-cream/50 opacity-60">{entry.entity_type}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {selected && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/60" onClick={() => setSelected(null)} />
@@ -281,14 +348,14 @@ export function AdminCompliance() {
             </div>
             <div className="p-5 space-y-4 flex-1 overflow-y-auto">
               <span className={`text-xs font-bold px-2.5 py-1 rounded border ${SEVERITY_STYLE[selected.severity]}`}>
-                {selected.severity.toUpperCase()} — {selected.type}
+                {selected.severity.toUpperCase()} - {selected.subject}
               </span>
-              <p className="text-sm text-cream leading-relaxed">{selected.description}</p>
+              <p className="text-sm text-cream leading-relaxed">{selected.message}</p>
               <div className="space-y-2 text-xs text-cream/50">
-                <p>Worker: <span className="text-cream">{MOCK_ALL_WORKERS.find(w=>w.id===selected.worker_id)?.full_name}</span></p>
-                <p>Reported: <span className="text-cream">{formatDate(selected.reported_at)}</span></p>
-                <p>Status: <span className={selected.status==='resolved' ? 'text-sage' : 'text-amber-400'}>{selected.status}</span></p>
-                {selected.resolved_at && <p>Resolved: <span className="text-sage">{formatDate(selected.resolved_at)}</span></p>}
+                <p>Worker: <span className="text-cream">{selectedWorker?.full_name ?? selected.worker_id}</span></p>
+                <p>Reported: <span className="text-cream">{formatDate(selected.created_at)}</span></p>
+                <p>Status: <span className={selected.status === 'resolved' ? 'text-sage' : 'text-amber-400'}>{selected.status.replace('_', ' ')}</span></p>
+                {selected.status === 'resolved' && <p>Resolved: <span className="text-sage">{formatDate(selected.updated_at)}</span></p>}
               </div>
             </div>
             {selected.status !== 'resolved' && (
@@ -304,6 +371,3 @@ export function AdminCompliance() {
     </div>
   );
 }
-
-
-

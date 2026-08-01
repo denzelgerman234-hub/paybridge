@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { localDb } from '../lib/localDb';
-import { supabase, supabaseConfig } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { subscribeToTableRefresh } from '../lib/realtime';
 import { AdminNotification } from '../types/database';
 
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
-  const isLocal = useMemo(() => supabaseConfig.isUsingMock || !supabaseConfig.hasSupabaseCredentials, []);
-
-  function refreshFromLocal() {
-    setNotifications(localDb.listAdminNotifications());
-  }
 
   async function refreshFromSupabase(cancelledRef?: { current: boolean }) {
     const { data, error } = await supabase
@@ -27,23 +22,22 @@ export function useAdminNotifications() {
   }
 
   function refresh() {
-    if (isLocal) {
-      refreshFromLocal();
-      return;
-    }
     void refreshFromSupabase();
   }
 
   useEffect(() => {
     const cancelledRef = { current: false };
-    if (isLocal) {
-      refreshFromLocal();
-      return localDb.subscribe(refreshFromLocal);
-    }
-
     void refreshFromSupabase(cancelledRef);
-    return () => { cancelledRef.current = true; };
-  }, [isLocal]);
+    const unsubscribe = subscribeToTableRefresh(
+      'admin-notifications',
+      [{ table: 'admin_notifications' }],
+      () => { void refreshFromSupabase(cancelledRef); },
+    );
+    return () => {
+      cancelledRef.current = true;
+      unsubscribe();
+    };
+  }, []);
 
   const unreadCount = useMemo(
     () => notifications.filter(notification => !notification.read).length,
@@ -51,12 +45,6 @@ export function useAdminNotifications() {
   );
 
   async function markRead(notificationId: string) {
-    if (isLocal) {
-      localDb.markAdminNotificationRead(notificationId);
-      refreshFromLocal();
-      return;
-    }
-
     const { error } = await supabase
       .from('admin_notifications')
       .update({ read: true })
@@ -66,12 +54,6 @@ export function useAdminNotifications() {
   }
 
   async function markAllRead() {
-    if (isLocal) {
-      localDb.markAllAdminNotificationsRead();
-      refreshFromLocal();
-      return;
-    }
-
     const { error } = await supabase
       .from('admin_notifications')
       .update({ read: true })

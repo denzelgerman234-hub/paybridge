@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RiDownloadLine, RiLineChartLine, RiCheckboxCircleLine, RiMoneyDollarCircleLine } from 'react-icons/ri';
-import { localDb } from '../../lib/localDb';
-import { supabase, supabaseConfig } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { BadgeIcon } from '../../components/ui/Badge';
 import { CommissionLedger, WorkerGig, WorkerProfile } from '../../types/database';
@@ -55,30 +54,6 @@ export function AdminCommissions() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const isLocal = supabaseConfig.isUsingMock || !supabaseConfig.hasSupabaseCredentials;
-
-  function refreshFromLocal() {
-    const state = localDb.snapshot();
-    const rows: CommissionRow[] = state.commission_ledger.map(commission => ({
-      ...commission,
-      amount: Number(commission.amount),
-      worker: state.workers.find(worker => worker.id === commission.worker_id) ?? null,
-      gig: state.gigs.find(gig => gig.id === commission.gig_id) ?? null,
-    }));
-
-    const rollup = state.workers.map(worker => ({
-      worker,
-      earned: rows.filter(c => c.worker_id === worker.id).reduce((sum, c) => sum + Number(c.amount), 0),
-      settled: rows.filter(c => c.worker_id === worker.id && c.status === 'settled').reduce((sum, c) => sum + Number(c.amount), 0),
-      pending: rows.filter(c => c.worker_id === worker.id && c.status !== 'settled').reduce((sum, c) => sum + Number(c.amount), 0),
-      count: rows.filter(c => c.worker_id === worker.id).length,
-    })).filter(row => row.earned > 0);
-
-    setCommissions(rows);
-    setWorkerRollup(rollup);
-    setLoading(false);
-  }
-
   async function refreshFromSupabase() {
     setLoading(true);
     try {
@@ -126,13 +101,8 @@ export function AdminCommissions() {
   }
 
   useEffect(() => {
-    if (isLocal) {
-      refreshFromLocal();
-      return localDb.subscribe(refreshFromLocal);
-    }
-
     void refreshFromSupabase();
-  }, [isLocal]);
+  }, []);
 
   const filtered = commissions.filter(c => filter === 'all' || c.status === filter);
 
@@ -143,27 +113,22 @@ export function AdminCommissions() {
   async function settle(id: string) {
     setBusyId(id);
     try {
-      if (isLocal) {
-        localDb.settleCommission(id);
-        refreshFromLocal();
-      } else {
-        const { error } = await supabase
-          .from('commission_ledger')
-          .update({ status: 'settled', settled_at: new Date().toISOString() })
-          .eq('id', id);
-        if (error) throw error;
-        const commission = commissions.find(item => item.id === id);
-        if (commission) {
-          await sendWorkerNotification({
-            workerId: commission.worker_id,
-            kind: 'fee_record_update',
-            title: 'Worker fee record updated',
-            body: `${commission.gig?.client_name ?? 'A gig'} worker fee was marked settled for ${formatCurrency(commission.amount)}.`,
-            href: '/wallet',
-          });
-        }
-        await refreshFromSupabase();
+      const { error } = await supabase
+        .from('commission_ledger')
+        .update({ status: 'settled', settled_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      const commission = commissions.find(item => item.id === id);
+      if (commission) {
+        await sendWorkerNotification({
+          workerId: commission.worker_id,
+          kind: 'fee_record_update',
+          title: 'Worker fee record updated',
+          body: `${commission.gig?.client_name ?? 'A gig'} worker fee was marked settled for ${formatCurrency(commission.amount)}.`,
+          href: '/wallet',
+        });
       }
+      await refreshFromSupabase();
       toast.success('Worker fee marked as settled');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not settle worker fee');

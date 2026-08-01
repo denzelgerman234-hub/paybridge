@@ -92,7 +92,7 @@ export function AdminLogin() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@paybridge.work"
+                  placeholder="admin@example.com"
                   className="input-dark pl-9"
                   required
                 />

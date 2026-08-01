@@ -133,6 +133,9 @@ export function AccountPage() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordChangedAt, setPasswordChangedAt] = useState<string | null>(() => {
+    try { return localStorage.getItem(`pw_changed_at_${profile?.id ?? 'anon'}`); } catch { return null; }
+  });
   const [isTwoFactorModalOpen, setIsTwoFactorModalOpen] = useState(false);
   const [enrollingTwoFactor, setEnrollingTwoFactor] = useState(false);
   const [verifyingTwoFactor, setVerifyingTwoFactor] = useState(false);
@@ -281,16 +284,18 @@ export function AccountPage() {
       toast.error('Password must be at least 8 characters');
       return;
     }
-    
+
     setChangingPassword(true);
     try {
-      // Supabase migration optimized logic:
-      // const { error } = await supabase.auth.updateUser({ password: passwordForm.new });
-      // if (error) throw error;
-      
-      // Mock network delay for now
-      await new Promise(res => setTimeout(res, 800));
-      
+      const { data, error } = await supabase.auth.updateUser({ password: passwordForm.new });
+      if (error) throw error;
+
+      // Persist the timestamp so it survives page reloads.
+      // Supabase reflects the change in user.updated_at immediately after updateUser.
+      const changedAt = data.user?.updated_at ?? new Date().toISOString();
+      try { localStorage.setItem(`pw_changed_at_${profile?.id ?? 'anon'}`, changedAt); } catch { /* ignore */ }
+      setPasswordChangedAt(changedAt);
+
       toast.success('Password updated successfully');
       setIsPasswordModalOpen(false);
       setPasswordForm({ current: '', new: '', confirm: '' });
@@ -603,7 +608,12 @@ export function AccountPage() {
             <div className="p-4 rounded flex items-center justify-between border border-white/8">
               <div>
                 <p className="font-semibold text-cream text-sm">Password</p>
-                <p className="text-xs text-cream/50">Last changed: Not changed recently</p>
+                <p className="text-xs text-cream/50">
+                  Last changed:{' '}
+                  {passwordChangedAt
+                    ? new Date(passwordChangedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'Not changed recently'}
+                </p>
               </div>
               <Button variant="secondary" size="sm" onClick={() => setIsPasswordModalOpen(true)}>Change</Button>
             </div>

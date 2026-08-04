@@ -62,15 +62,20 @@ export function AdminGigs() {
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryForm[]>([]);
   const [fundRef, setFundRef] = useState('');
   const [busy, setBusy] = useState(false);
+  // Post-funding beneficiary assignment
+  const [showBeneficiaries, setShowBeneficiaries] = useState<WorkerGig | null>(null);
+  const [beneficiariesForGig, setBeneficiariesForGig] = useState<BeneficiaryForm[]>([]);
+  const [disbCountByGig, setDisbCountByGig] = useState<Map<string, number>>(new Map());
 
   async function refresh() {
     setLoading(true);
     try {
-      const [gigsResult, appsResult, workersResult, workerAppsResult] = await Promise.all([
+      const [gigsResult, appsResult, workersResult, workerAppsResult, disbResult] = await Promise.all([
         supabase.from('worker_gigs').select('*').order('created_at', { ascending: false }),
         supabase.from('gig_applications').select('*').order('submitted_at', { ascending: false }),
         supabase.from('worker_profiles').select('*').order('full_name', { ascending: true }),
         supabase.from('worker_applications').select('worker_id,email,status').eq('status', 'approved'),
+        supabase.from('worker_disbursements').select('gig_id'),
       ]);
 
       throwIfError(gigsResult.error);
@@ -89,9 +94,16 @@ export function AdminGigs() {
         worker: workerById.get(app.worker_id) ?? null,
       })) as AdminGigApplication[];
 
+      // Build disbursement counts per gig so we can gate the "Add Beneficiaries" button
+      const nextDisbCount = new Map<string, number>();
+      ((disbResult.data ?? []) as { gig_id: string }[]).forEach(row => {
+        nextDisbCount.set(row.gig_id, (nextDisbCount.get(row.gig_id) ?? 0) + 1);
+      });
+
       setGigs(nextGigs);
       setWorkers(nextWorkers);
       setApplications(nextApplications);
+      setDisbCountByGig(nextDisbCount);
     } catch (error) {
       console.error('[paybridge] Failed to load admin gigs', error);
       toast.error(error instanceof Error ? error.message : 'Could not load gigs');
@@ -321,7 +333,7 @@ export function AdminGigs() {
       });
       throwIfError(messageError);
 
-      await materializeBeneficiaries(app.gig_id, app.worker_id);
+      // Beneficiaries are NOT materialized here — admin fills them in after worker confirms funding receipt
       await sendWorkerNotification({
         workerId: app.worker_id,
         kind: 'disbursement_update',
@@ -356,6 +368,104 @@ export function AdminGigs() {
       const next = prev.filter((_, itemIndex) => itemIndex !== index);
       return next.length > 0 ? next : [emptyBeneficiary()];
     });
+  }
+
+  // ── Post-funding beneficiary helpers ──────────────────────────────────────
+
+  function addBeneficiaryForGig() {
+    setBeneficiariesForGig(prev => prev.length >= MAX_BENEFICIARIES ? prev : [...prev, emptyBeneficiary()]);
+  }
+
+  function updateBeneficiaryForGig(index: number, fields: Partial<BeneficiaryForm>) {
+    setBeneficiariesForGig(prev => prev.map((item, i) => i === index ? { ...item, ...fields } : item));
+  }
+
+  function removeBeneficiaryForGig(index: number) {
+    setBeneficiariesForGig(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [emptyBeneficiary()];
+    });
+  }
+
+  async function openBeneficiariesModal(gig: WorkerGig) {
+    // Pre-populate with any draft beneficiaries already saved for this gig
+    const { data } = await supabase
+      .from('gig_beneficiaries')
+      .select('*')
+      .eq('gig_id', gig.id)
+      .order('created_at', { ascending: true });
+    const drafts = (data ?? []) as GigBeneficiary[];
+    setBeneficiariesForGig(
+      drafts.length > 0
+        ? drafts.map(d => ({ recipient_name: d.recipient_name, amount: d.amount, method: d.method, destination: d.destination }))
+        : [emptyBeneficiary()]
+    );
+    setShowBeneficiaries(gig);
+  }
+
+  async function saveBeneficiaries() {
+    const workerId = showBeneficiaries?.worker_id;
+    if (!workerId) return;
+    const gig = showBeneficiaries;
+
+    const clean = beneficiariesForGig
+      .map(b => ({ ...b, recipient_name: b.recipient_name.trim(), destination: b.destination.trim(), amount: Number(b.amount) || 0 }))
+      .filter(b => b.recipient_name && b.destination && b.amount > 0);
+
+    if (clean.length === 0) { toast.error('Add at least one complete beneficiary row'); return; }
+    if (clean.some(b => !b.recipient_name || !b.destination || !b.amount)) {
+      toast.error('Complete all fields for each beneficiary'); return;
+    }
+
+    setBusy(true);
+    try {
+      // 1. Replace any existing draft records for this gig in Supabase
+      const { error: deleteError } = await supabase
+        .from('gig_beneficiaries')
+        .delete()
+        .eq('gig_id', gig.id);
+      throwIfError(deleteError);
+
+      const { error: insertError } = await supabase.from('gig_beneficiaries').insert(
+        clean.map(b => ({
+          gig_id: gig.id,
+          recipient_name: b.recipient_name,
+          amount: b.amount,
+          method: b.method,
+          destination: b.destination,
+        }))
+      );
+      throwIfError(insertError);
+
+      // 2. Materialize into worker_disbursements (Supabase)
+      await materializeBeneficiaries(gig.id, workerId);
+
+      // 3. Advance funding status so worker can start submitting proofs
+      const { error: gigError } = await supabase
+        .from('worker_gigs')
+        .update({ funding_status: 'disbursement_in_progress' })
+        .eq('id', gig.id);
+      throwIfError(gigError);
+
+      // 4. Notify the worker
+      await sendWorkerNotification({
+        workerId: workerId,
+        kind: 'disbursement_update',
+        title: 'Disbursement recipients are ready',
+        body: `${gig.client_name}: your recipient instructions are set. Open the gig to begin disbursements.`,
+        href: `/gigs/${gig.id}`,
+      });
+
+      setShowBeneficiaries(null);
+      setBeneficiariesForGig([]);
+      await refresh();
+      toast.success('Beneficiaries sent to worker');
+    } catch (error) {
+      console.error('[paybridge] Failed to save beneficiaries', error);
+      toast.error(error instanceof Error ? error.message : 'Could not save beneficiaries');
+    } finally {
+      setBusy(false);
+    }
   }
 
   const statuses = ['all', 'open', 'accepted', 'funded', 'in_progress', 'completed', 'cancelled'];
@@ -458,6 +568,17 @@ export function AdminGigs() {
                           <button disabled={busy} onClick={() => setShowFund(gig)}
                             className="p-1.5 rounded-lg hover:bg-sage-500/15 text-sage transition-colors disabled:opacity-50" title="Record Funding">
                             <RiMoneyDollarCircleLine size={14} />
+                          </button>
+                        )}
+                        {/* Show "Add Beneficiaries" only after worker has confirmed they received funds and no disbursements exist yet */}
+                        {gig.worker_id && gig.funding_status === 'funding_confirmed' && (disbCountByGig.get(gig.id) ?? 0) === 0 && (
+                          <button
+                            disabled={busy}
+                            onClick={() => openBeneficiariesModal(gig)}
+                            className="px-2.5 py-1 rounded text-xs font-bold border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
+                            title="Add beneficiaries for disbursement"
+                          >
+                            Add Beneficiaries
                           </button>
                         )}
                         {!gig.worker_id && <span className="text-xs text-cream/35">Awaiting application</span>}
@@ -604,6 +725,61 @@ export function AdminGigs() {
               <button disabled={busy} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => setShowFund(null)}>Cancel</button>
               <button disabled={busy} className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50" onClick={() => fundGig(showFund)}>
                 <RiMoneyDollarCircleLine size={15}/> Confirm Funding
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Beneficiaries Modal (shown after worker confirms funding receipt) ── */}
+      {showBeneficiaries && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-8">
+          <div className="absolute inset-0 bg-black/70" onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }} />
+          <div className="relative w-full max-w-lg card p-6 max-h-[calc(100dvh-3rem)] overflow-y-auto">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-cream text-lg">Add Disbursement Recipients</h2>
+              <button onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }} className="text-cream/50 hover:text-cream"><RiCloseLine size={18} /></button>
+            </div>
+            <p className="text-xs text-cream/50 mb-5">
+              {showBeneficiaries.client_name} — worker has confirmed receipt of <strong className="text-gold">{formatCurrency(showBeneficiaries.total_principal)}</strong>. Add recipients below and submit to send instructions to the worker.
+            </p>
+
+            <div className="space-y-3 mb-5">
+              {beneficiariesForGig.map((b, index) => (
+                <div key={index} className="rounded border border-white/8 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-cream">Recipient {index + 1}</p>
+                    <button type="button" className="text-cream/45 hover:text-cream" onClick={() => removeBeneficiaryForGig(index)} aria-label="Remove">
+                      <RiCloseLine size={15} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input className="input-dark" value={b.recipient_name} onChange={e => updateBeneficiaryForGig(index, { recipient_name: e.target.value })} placeholder="Recipient name" />
+                    <input className="input-dark" type="number" min={0} value={b.amount || ''} onChange={e => updateBeneficiaryForGig(index, { amount: +e.target.value })} placeholder="Amount" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-2">
+                    <select className="input-dark appearance-none" value={b.method} onChange={e => updateBeneficiaryForGig(index, { method: e.target.value })}>
+                      {DISBURSEMENT_METHODS.map(m => <option key={m.id} value={m.id} className="bg-[#1e1c35]">{m.label}</option>)}
+                    </select>
+                    <input className="input-dark" value={b.destination} onChange={e => updateBeneficiaryForGig(index, { destination: e.target.value })} placeholder="Destination / account / handle" />
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className="w-full py-2 rounded border border-dashed border-white/15 text-xs font-semibold text-cream/50 hover:border-gold/40 hover:text-gold transition-colors disabled:opacity-40"
+                onClick={addBeneficiaryForGig}
+                disabled={beneficiariesForGig.length >= MAX_BENEFICIARIES}
+              >
+                + Add recipient ({beneficiariesForGig.length}/{MAX_BENEFICIARIES})
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button disabled={busy} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }}>Cancel</button>
+              <button disabled={busy} className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50" onClick={saveBeneficiaries}>
+                <RiCheckLine size={15} /> Send to Worker
               </button>
             </div>
           </div>

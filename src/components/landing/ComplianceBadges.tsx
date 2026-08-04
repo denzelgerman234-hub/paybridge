@@ -13,14 +13,14 @@ export function ComplianceBadges() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-start gap-[10px]">
-            <img src="/images/compliance/fincen-user.png" alt="FinCEN" className="h-28 object-contain" />
-            <img src="/images/compliance/ofac-user.png" alt="OFAC" className="h-28 object-contain" />
-            <img src="/images/compliance/nacha-user.png" alt="NACHA" className="h-20 object-contain" />
-            <img src="/images/compliance/pcidss-user.png" alt="PCI DSS" className="h-24 object-contain" />
-            <img src="/images/compliance/soc2-user.png" alt="SOC 2" className="h-28 object-contain" />
-            <img src="/images/compliance/iso27001-user.png" alt="ISO 27001" className="h-28 object-contain" />
-            <img src="/images/compliance/bbb-user.png" alt="BBB" className="h-24 object-contain" />
+          <div className="flex flex-wrap md:flex-nowrap items-center justify-center md:justify-start gap-3 md:gap-4">
+            <img src="/images/compliance/fincen-user.png" alt="FinCEN" className="h-7 object-contain" />
+            <img src="/images/compliance/ofac-user.png" alt="OFAC" className="h-7 object-contain" />
+            <img src="/images/compliance/nacha-user.png" alt="NACHA" className="h-5 object-contain" />
+            <img src="/images/compliance/pcidss-user.png" alt="PCI DSS" className="h-6 object-contain" />
+            <img src="/images/compliance/soc2-user.png" alt="SOC 2" className="h-7 object-contain" />
+            <img src="/images/compliance/iso27001-user.png" alt="ISO 27001" className="h-7 object-contain" />
+            <img src="/images/compliance/bbb-user.png" alt="BBB" className="h-6 object-contain" />
           </div>
 
         </div>

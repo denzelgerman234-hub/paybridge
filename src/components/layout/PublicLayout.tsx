@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Menu, X } from 'lucide-react';
 import { PBNav, PBMark } from '../brand/Logo';
 import { PLATFORM_FINCEN } from '../../lib/constants';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,6 +16,9 @@ const navLink = `text-xs font-semibold uppercase tracking-widest transition-colo
 export function PublicLayout() {
   const { isAuthenticated } = useAuth();
   const goBack = useSmartBack('/dashboard');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const closeNav = () => setMobileNavOpen(false);
 
   return (
     <div className="min-h-screen" style={{ background: '#0B132F' }}>
@@ -71,9 +75,48 @@ export function PublicLayout() {
                 </Link>
               </>
             )}
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="p-2 -mr-2 text-cream hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <Menu size={20} />
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Mobile Nav Drawer */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end md:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeNav} />
+          <div className="relative w-64 h-full bg-[#0D1632] border-l border-white/10 shadow-2xl flex flex-col">
+            <div className="h-14 flex items-center justify-end px-3 border-b border-white/5">
+              <button onClick={closeNav} className="p-2 text-cream hover:bg-white/5 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-1 p-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              {[
+                { to: '/', label: 'Home' },
+                { to: '/terms', label: 'Terms' },
+                { to: '/privacy', label: 'Privacy' },
+                { to: '/code-of-conduct', label: 'Code of Conduct' },
+                { to: '/faq', label: 'FAQ' },
+                { to: '/contact', label: 'Contact' },
+              ].map(({ to, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={closeNav}
+                  className="px-4 py-3 rounded-lg text-sm font-semibold uppercase tracking-widest text-cream/70 hover:text-cream hover:bg-white/5 transition-colors"
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
 
       <main className="pt-14">
         <Outlet />
@@ -97,37 +140,30 @@ export function PublicLayout() {
 
             {/* Links */}
             <div
-              className="flex flex-wrap gap-x-8 gap-y-3 text-xs font-semibold uppercase tracking-widest"
+              className="flex flex-col md:flex-row gap-x-8 gap-y-3 text-xs font-semibold uppercase tracking-widest"
               style={{ fontFamily: "'Space Grotesk', sans-serif", color: CREAM_DIM }}
             >
-              {[
-                ['/terms', 'Terms'],
-                ['/privacy', 'Privacy'],
-                ['/code-of-conduct', 'Code of Conduct'],
-                ['/faq', 'FAQ'],
-                ['/contact', 'Contact'],
-              ].map(([to, label]) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className="hover:text-gold transition-colors"
-                  style={{ color: 'inherit' }}
-                >
-                  {label}
-                </Link>
-              ))}
+              <div className="flex flex-wrap gap-x-8 gap-y-3">
+                <Link to="/terms" className="hover:text-gold transition-colors" style={{ color: 'inherit' }}>Terms</Link>
+                <Link to="/privacy" className="hover:text-gold transition-colors" style={{ color: 'inherit' }}>Privacy</Link>
+                <Link to="/code-of-conduct" className="hover:text-gold transition-colors" style={{ color: 'inherit' }}>Code of Conduct</Link>
+              </div>
+              <div className="flex flex-wrap gap-x-8 gap-y-3">
+                <Link to="/faq" className="hover:text-gold transition-colors" style={{ color: 'inherit' }}>FAQ</Link>
+                <Link to="/contact" className="hover:text-gold transition-colors" style={{ color: 'inherit' }}>Contact</Link>
+              </div>
             </div>
           </div>
 
           {/* Bottom rule */}
-          <div className="mt-8 pt-6 border-t flex flex-wrap items-center justify-start gap-[10px]" style={{ borderColor: BORDER }}>
-            <img src="/images/compliance/fincen-user.png" alt="FinCEN Registered" className="h-28 object-contain" title="FinCEN Registered Money Services Business" />
-            <img src="/images/compliance/ofac-user.png" alt="OFAC" className="h-28 object-contain" title="OFAC Compliant" />
-            <img src="/images/compliance/nacha-user.png" alt="NACHA Compliant" className="h-20 object-contain" title="NACHA — ACH Compliant" />
-            <img src="/images/compliance/pcidss-user.png" alt="PCI DSS" className="h-24 object-contain" title="PCI DSS Compliant" />
-            <img src="/images/compliance/soc2-user.png" alt="SOC 2" className="h-28 object-contain" title="SOC 2 Certified" />
-            <img src="/images/compliance/iso27001-user.png" alt="ISO 27001" className="h-28 object-contain" title="ISO 27001 Certified" />
-            <img src="/images/compliance/bbb-user.png" alt="BBB Accredited" className="h-24 object-contain" title="Better Business Bureau Accredited" />
+          <div className="mt-8 pt-6 border-t flex flex-wrap md:flex-nowrap items-center justify-center md:justify-start gap-3 md:gap-4" style={{ borderColor: BORDER }}>
+            <img src="/images/compliance/fincen-user.png" alt="FinCEN Registered" className="h-7 object-contain" title="FinCEN Registered Money Services Business" />
+            <img src="/images/compliance/ofac-user.png" alt="OFAC" className="h-7 object-contain" title="OFAC Compliant" />
+            <img src="/images/compliance/nacha-user.png" alt="NACHA Compliant" className="h-5 object-contain" title="NACHA — ACH Compliant" />
+            <img src="/images/compliance/pcidss-user.png" alt="PCI DSS" className="h-6 object-contain" title="PCI DSS Compliant" />
+            <img src="/images/compliance/soc2-user.png" alt="SOC 2" className="h-7 object-contain" title="SOC 2 Certified" />
+            <img src="/images/compliance/iso27001-user.png" alt="ISO 27001" className="h-7 object-contain" title="ISO 27001 Certified" />
+            <img src="/images/compliance/bbb-user.png" alt="BBB Accredited" className="h-6 object-contain" title="Better Business Bureau Accredited" />
           </div>
         </div>
       </footer>

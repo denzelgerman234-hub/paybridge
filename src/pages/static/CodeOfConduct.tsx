@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ComplianceBadges } from '../../components/landing/ComplianceBadges';
 
 export function CodeOfConduct() {
   return (
@@ -43,6 +44,10 @@ export function CodeOfConduct() {
             title: '8. Termination',
             content: `PayBridge may terminate your account immediately for:\n• Using personal funds for disbursements\n• Operating a non-dedicated disbursement account\n• Failing to upload disbursement proof\n• Any AML or OFAC violation\n• Operating outside the platform dashboard\n\nTermination does not waive any legal obligations.`,
           },
+          {
+            title: '9. Zero Tolerance Policy',
+            content: `Any attempt to steal funds, falsify proofs, impersonate another worker, or solicit direct payment from a client will result in immediate termination, forfeiture of pending commissions, and potential referral to law enforcement.`,
+          },
         ].map(({ title, content }) => (
           <section key={title}>
             <h2 className="text-lg font-black text-cream mb-3">{title}</h2>
@@ -56,6 +61,10 @@ export function CodeOfConduct() {
             <Link to="/support" className="text-gold hover:underline">visit support</Link>.
           </p>
         </div>
+      </div>
+
+      <div className="mt-16">
+        <ComplianceBadges />
       </div>
     </div>
   );

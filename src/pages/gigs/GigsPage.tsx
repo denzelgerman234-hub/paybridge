@@ -93,7 +93,9 @@ export function GigsPage({ tab }: GigsPageProps) {
         })}
       </div>
 
-      {tab === 'available' ? <GigListAvailable showHeader={false} /> : <GigListActive showHeader={false} />}
+      {tab === 'available'
+        ? <GigListAvailable showHeader={false} gigs={gigs} loading={loading} />
+        : <GigListActive showHeader={false} gigs={gigs} loading={loading} />}
     </div>
   );
 }

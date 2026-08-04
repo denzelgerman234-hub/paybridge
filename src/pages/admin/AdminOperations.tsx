@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { RiArrowLeftLine, RiBriefcaseLine, RiCheckboxCircleLine, RiMessage2Line, RiTimeLine } from 'react-icons/ri';
+import { RiArrowLeftLine, RiBriefcaseLine, RiCheckboxCircleLine, RiMessage2Line, RiTimeLine, RiCloseLine } from 'react-icons/ri';
 import { supabase } from '../../lib/supabase';
 import { subscribeToTableRefresh } from '../../lib/realtime';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../lib/utils';
 import { MessageInputBar, Attachment } from '../../components/ui/MessageInputBar';
 import { OperationMessage, OperationThread, WorkerDisbursement, WorkerGig, WorkerProfile } from '../../types/database';
+import { DISBURSEMENT_METHODS } from '../../lib/constants';
+import { sendWorkerNotification } from '../../lib/notificationDelivery';
+
+type BeneficiaryForm = Pick<WorkerDisbursement, 'recipient_name' | 'amount' | 'method' | 'destination'>;
+function emptyBeneficiary(): BeneficiaryForm {
+  return { recipient_name: '', amount: 0, method: 'bank_transfer', destination: '' };
+}
+const MAX_BENEFICIARIES = 5;
 
 type OperationRoom = OperationThread & {
   gig: WorkerGig | null;
@@ -56,6 +64,11 @@ export function AdminOperations() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  
+  // Post-funding beneficiary assignment
+  const [showBeneficiariesForm, setShowBeneficiariesForm] = useState(false);
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryForm[]>([]);
+  const [savingBeneficiaries, setSavingBeneficiaries] = useState(false);
 
   async function refresh(showLoading = true) {
     if (showLoading) setLoading(true);
@@ -103,7 +116,15 @@ export function AdminOperations() {
       }));
 
       setRooms(nextRooms);
-      setSelectedId(current => current ?? nextRooms[0]?.id ?? null);
+      
+      const newSelected = nextRooms.find(r => r.id === (selectedId ?? nextRooms[0]?.id));
+      setSelectedId(newSelected?.id ?? null);
+      
+      // Auto-hide beneficiaries form if room changed or disbursements were added
+      if (!newSelected || newSelected.disbursements.length > 0 || newSelected.gig?.funding_status !== 'funding_confirmed') {
+        setShowBeneficiariesForm(false);
+        setBeneficiaries([]);
+      }
     } catch (error) {
       console.error('[paybridge] Failed to load operations rooms', error);
       toast.error(error instanceof Error ? error.message : 'Could not load operations rooms');
@@ -165,8 +186,98 @@ export function AdminOperations() {
   }
 
   function openRoom(roomId: string) {
+    if (roomId !== selectedId) {
+      setShowBeneficiariesForm(false);
+      setBeneficiaries([]);
+    }
     setSelectedId(roomId);
     setMobileView('detail');
+  }
+
+  // ── Post-funding beneficiary helpers ──────────────────────────────────────
+
+  async function loadDraftBeneficiaries() {
+    if (!selected?.gig) return;
+    const { data } = await supabase
+      .from('gig_beneficiaries')
+      .select('*')
+      .eq('gig_id', selected.gig.id)
+      .order('created_at', { ascending: true });
+    
+    const drafts = (data ?? []) as any[];
+    setBeneficiaries(
+      drafts.length > 0
+        ? drafts.map(d => ({ recipient_name: d.recipient_name, amount: d.amount, method: d.method, destination: d.destination }))
+        : [emptyBeneficiary()]
+    );
+    setShowBeneficiariesForm(true);
+  }
+
+  async function saveBeneficiaries() {
+    if (!selected?.gig || !selected.worker) return;
+    const gig = selected.gig;
+
+    const clean = beneficiaries
+      .map(b => ({ ...b, recipient_name: b.recipient_name.trim(), destination: b.destination.trim(), amount: Number(b.amount) || 0 }))
+      .filter(b => b.recipient_name && b.destination && b.amount > 0);
+
+    if (clean.length === 0) { toast.error('Add at least one complete beneficiary row'); return; }
+    if (clean.some(b => !b.recipient_name || !b.destination || !b.amount)) {
+      toast.error('Complete all fields for each beneficiary'); return;
+    }
+
+    setSavingBeneficiaries(true);
+    try {
+      const { error: deleteError } = await supabase.from('gig_beneficiaries').delete().eq('gig_id', gig.id);
+      throwIfError(deleteError);
+
+      const { error: insertError } = await supabase.from('gig_beneficiaries').insert(
+        clean.map(b => ({ gig_id: gig.id, recipient_name: b.recipient_name, amount: b.amount, method: b.method, destination: b.destination }))
+      );
+      throwIfError(insertError);
+
+      const { error: materializeError } = await supabase.rpc('materialize_beneficiaries', { p_gig_id: gig.id, p_worker_id: selected.worker.id });
+      if (materializeError && !materializeError.message?.includes('function')) {
+         // Fallback to manual materialization if RPC not present yet
+         const rows = clean.map(item => ({
+            gig_id: gig.id,
+            worker_id: selected.worker!.id,
+            recipient_name: item.recipient_name,
+            amount: Number(item.amount),
+            method: item.method,
+            destination: item.destination,
+            status: 'pending',
+            transaction_id: null,
+            proof_url: null,
+            notes: null,
+          }));
+          const { error } = await supabase.from('worker_disbursements').insert(rows);
+          throwIfError(error);
+      } else if (materializeError) {
+         throwIfError(materializeError);
+      }
+
+      const { error: gigError } = await supabase.from('worker_gigs').update({ funding_status: 'disbursement_in_progress' }).eq('id', gig.id);
+      throwIfError(gigError);
+
+      await sendWorkerNotification({
+        workerId: gig.worker_id!,
+        kind: 'disbursement_update',
+        title: 'Disbursement recipients are ready',
+        body: `${gig.client_name}: your recipient instructions are set. Open the gig to begin disbursements.`,
+        href: `/gigs/${gig.id}`,
+      });
+
+      setShowBeneficiariesForm(false);
+      setBeneficiaries([]);
+      await refresh(false);
+      toast.success('Beneficiaries sent to worker');
+    } catch (error) {
+      console.error('[paybridge] Failed to save beneficiaries', error);
+      toast.error(error instanceof Error ? error.message : 'Could not save beneficiaries');
+    } finally {
+      setSavingBeneficiaries(false);
+    }
   }
 
   function renderRoomList() {
@@ -260,7 +371,73 @@ export function AdminOperations() {
 
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-bold text-cream"><RiMessage2Line /> Beneficiary Status</div>
-            {selected.disbursements.length === 0 ? (
+            
+            {/* Show Add Beneficiaries prompt if gig is funding_confirmed and has no disbursements */}
+            {selected.gig?.funding_status === 'funding_confirmed' && selected.disbursements.length === 0 && !showBeneficiariesForm && (
+              <div className="p-4 rounded border border-gold/30 bg-gold/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <p className="font-bold text-sm text-gold">Ready for Disbursment Instructions</p>
+                  <p className="text-xs text-cream/60 mt-0.5">Worker has confirmed receipt of funds. Add recipients now.</p>
+                </div>
+                <button 
+                  onClick={loadDraftBeneficiaries}
+                  className="px-3 py-1.5 rounded text-xs font-bold bg-gold text-[#0B132F] hover:bg-gold/80 transition-colors whitespace-nowrap"
+                >
+                  Add Beneficiaries
+                </button>
+              </div>
+            )}
+
+            {showBeneficiariesForm && (
+              <div className="p-4 rounded border border-white/10 bg-white/5 space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-sm text-cream">Add Disbursement Recipients</p>
+                  <button onClick={() => setShowBeneficiariesForm(false)} className="text-cream/50 hover:text-cream text-xs">Cancel</button>
+                </div>
+                
+                {beneficiaries.map((b, index) => (
+                  <div key={index} className="rounded border border-white/8 p-3 space-y-2 bg-[#0B132F]">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-bold text-cream">Recipient {index + 1}</p>
+                      <button type="button" className="text-cream/45 hover:text-cream" onClick={() => setBeneficiaries(prev => prev.filter((_, i) => i !== index))} aria-label="Remove">
+                        <RiCloseLine size={15} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input className="input-dark" value={b.recipient_name} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, recipient_name: e.target.value } : item))} placeholder="Recipient name" />
+                      <input className="input-dark" type="number" min={0} value={b.amount || ''} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, amount: +e.target.value } : item))} placeholder="Amount" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-2">
+                      <select className="input-dark appearance-none text-xs" value={b.method} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, method: e.target.value } : item))}>
+                        {DISBURSEMENT_METHODS.map(m => <option key={m.id} value={m.id} className="bg-[#1e1c35]">{m.label}</option>)}
+                      </select>
+                      <input className="input-dark" value={b.destination} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, destination: e.target.value } : item))} placeholder="Destination / account" />
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className="w-full py-2 rounded border border-dashed border-white/15 text-xs font-semibold text-cream/50 hover:border-gold/40 hover:text-gold transition-colors disabled:opacity-40"
+                  onClick={() => setBeneficiaries(prev => prev.length >= MAX_BENEFICIARIES ? prev : [...prev, emptyBeneficiary()])}
+                  disabled={beneficiaries.length >= MAX_BENEFICIARIES}
+                >
+                  + Add recipient ({beneficiaries.length}/{MAX_BENEFICIARIES})
+                </button>
+
+                <div className="flex justify-end pt-2">
+                  <button 
+                    disabled={savingBeneficiaries} 
+                    className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50" 
+                    onClick={saveBeneficiaries}
+                  >
+                    <RiCheckboxCircleLine size={15} /> Send to Worker
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selected.disbursements.length === 0 && !showBeneficiariesForm && selected.gig?.funding_status !== 'funding_confirmed' ? (
               <div className="p-4 rounded border border-white/8 text-xs text-cream/50">No beneficiary records yet.</div>
             ) : selected.disbursements.map(item => (
               <div key={item.id} className="p-3 rounded border border-white/8">

@@ -250,9 +250,9 @@ export function SupportPage() {
             </Link>
           ))}
         </div>
-        <div className="mt-4 pt-4 border-t border-white/8 flex items-center gap-4 text-xs text-cream/50">
-          <a href="mailto:assistance.paybridge@outlook.com" className="flex items-center gap-1.5 hover:text-cream"><Mail size={13} /> assistance.paybridge@outlook.com</a>
-          <a href="mailto:compliance.paybridge@outlook.com" className="flex items-center gap-1.5 hover:text-red-400"><AlertTriangle size={13} /> compliance.paybridge@outlook.com</a>
+        <div className="mt-4 pt-4 border-t border-white/8 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 text-xs text-cream/50">
+          <a href="mailto:assistance.paybridge@outlook.com" className="flex items-center gap-1.5 hover:text-cream break-all"><Mail size={13} className="flex-shrink-0" /> assistance.paybridge@outlook.com</a>
+          <a href="mailto:compliance.paybridge@outlook.com" className="flex items-center gap-1.5 hover:text-red-400 break-all"><AlertTriangle size={13} className="flex-shrink-0" /> compliance.paybridge@outlook.com</a>
         </div>
       </Card>
 

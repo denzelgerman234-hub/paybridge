@@ -1,4 +1,4 @@
-import { useGigs } from '../../hooks/useGigs';
+import { useGigs, GigWithApplication } from '../../hooks/useGigs';
 import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -14,11 +14,17 @@ const GOLD   = '#C9A84C';
 
 interface GigListActiveProps {
   showHeader?: boolean;
+  /** Pre-fetched gigs from a parent that already called useGigs — avoids a duplicate hook instance */
+  gigs?: GigWithApplication[];
+  loading?: boolean;
 }
 
-export function GigListActive({ showHeader = true }: GigListActiveProps) {
+export function GigListActive({ showHeader = true, gigs: gigsProp, loading: loadingProp }: GigListActiveProps) {
   const { profile } = useAuth();
-  const { gigs, loading } = useGigs(profile?.id);
+  // Only call useGigs if the parent didn't supply data (standalone usage)
+  const ownHook = useGigs(gigsProp === undefined ? profile?.id : undefined);
+  const gigs = gigsProp ?? ownHook.gigs;
+  const loading = loadingProp ?? ownHook.loading;
   if (loading) return <LoadingSpinner text="Loading active gigs..." />;
 
   const active = gigs.filter(g => isActiveWorkerGig(g, profile?.id));

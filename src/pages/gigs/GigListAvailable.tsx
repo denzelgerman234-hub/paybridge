@@ -1,4 +1,4 @@
-import { useGigs } from '../../hooks/useGigs';
+import { useGigs, GigWithApplication } from '../../hooks/useGigs';
 import { useAuth } from '../../hooks/useAuth';
 import { BadgeIcon } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -17,11 +17,17 @@ const NAVY8  = '#12203F';
 
 interface GigListAvailableProps {
   showHeader?: boolean;
+  /** Pre-fetched gigs from a parent that already called useGigs — avoids a duplicate hook instance */
+  gigs?: GigWithApplication[];
+  loading?: boolean;
 }
 
-export function GigListAvailable({ showHeader = true }: GigListAvailableProps) {
+export function GigListAvailable({ showHeader = true, gigs: gigsProp, loading: loadingProp }: GigListAvailableProps) {
   const { profile } = useAuth();
-  const { gigs, loading } = useGigs(profile?.id);
+  // Only call useGigs if the parent didn't supply data (standalone usage)
+  const ownHook = useGigs(gigsProp === undefined ? profile?.id : undefined);
+  const gigs = gigsProp ?? ownHook.gigs;
+  const loading = loadingProp ?? ownHook.loading;
   const [search, setSearch] = useState('');
 
   if (loading) return <LoadingSpinner text="Loading gigs..." />;

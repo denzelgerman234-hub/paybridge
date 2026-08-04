@@ -12,14 +12,14 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { to: '/dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/gigs',           icon: Briefcase,        label: 'Gigs' },
-  { to: '/records',        icon: Archive,          label: 'Records' },
-  { to: '/badges',         icon: Award,            label: 'Badges' },
-  { to: '/training',       icon: BookOpen,         label: 'Training' },
-  { to: '/activity',       icon: Activity,         label: 'Activity' },
-  { to: '/account',        icon: Settings,         label: 'Account' },
-  { to: '/support',        icon: HelpCircle,       label: 'Support' },
+  { to: '/dashboard',      icon: LayoutDashboard, label: 'Dashboard',  isGigsLink: false },
+  { to: '/gigs/available', icon: Briefcase,        label: 'Gigs',       isGigsLink: true  },
+  { to: '/records',        icon: Archive,          label: 'Records',    isGigsLink: false },
+  { to: '/badges',         icon: Award,            label: 'Badges',     isGigsLink: false },
+  { to: '/training',       icon: BookOpen,         label: 'Training',   isGigsLink: false },
+  { to: '/activity',       icon: Activity,         label: 'Activity',   isGigsLink: false },
+  { to: '/account',        icon: Settings,         label: 'Account',    isGigsLink: false },
+  { to: '/support',        icon: HelpCircle,       label: 'Support',    isGigsLink: false },
 ];
 
 const NAV_BG    = '#0D1632';
@@ -63,17 +63,19 @@ export function Navbar() {
             </Link>
 
             <div className="hidden lg:flex items-center">
-              {navItems.map(({ to, icon: Icon, label }) => (
+              {navItems.map(({ to, icon: Icon, label, isGigsLink }) => (
                 <NavLink
                   key={to}
                   to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold tracking-wider uppercase transition-colors duration-150 ${
-                      isActive
+                  end={!isGigsLink}
+                  className={({ isActive: navActive }) => {
+                    const active = navActive || (isGigsLink && location.pathname.startsWith('/gigs'));
+                    return `flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold tracking-wider uppercase transition-colors duration-150 ${
+                      active
                         ? 'text-gold border-b-2 border-gold'
                         : 'text-cream-dim hover:text-cream border-b-2 border-transparent'
-                    }`
-                  }
+                    }`;
+                  }}
                   style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
                 >
                   <Icon size={13} strokeWidth={2} />
@@ -299,16 +301,18 @@ export function Navbar() {
             className="fixed top-14 left-0 right-0 z-30 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b py-2"
             style={{ background: '#0D1632', borderColor: BORDER }}
           >
-            {navItems.map(({ to, icon: Icon, label }) => (
+            {navItems.map(({ to, icon: Icon, label, isGigsLink }) => (
               <NavLink
                 key={to}
                 to={to}
+                end={!isGigsLink}
                 onClick={() => setShowMobile(false)}
-                className={({ isActive }) =>
-                  `flex min-h-12 items-center gap-3 px-5 py-3 text-sm font-semibold uppercase tracking-wider transition-colors ${
-                    isActive ? 'text-gold border-l-2 border-gold bg-gold/5' : 'border-l-2 border-transparent'
-                  }`
-                }
+                className={({ isActive: navActive }) => {
+                  const active = navActive || (isGigsLink && location.pathname.startsWith('/gigs'));
+                  return `flex min-h-12 items-center gap-3 px-5 py-3 text-sm font-semibold uppercase tracking-wider transition-colors ${
+                    active ? 'text-gold border-l-2 border-gold bg-gold/5' : 'border-l-2 border-transparent'
+                  }`;
+                }}
                 style={{
                   fontFamily: "'Space Grotesk', sans-serif",
                   color: undefined,

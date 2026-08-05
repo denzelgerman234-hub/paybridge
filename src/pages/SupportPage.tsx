@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -6,12 +6,12 @@ import { Textarea } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { MessageInputBar, Attachment } from '../components/ui/MessageInputBar';
 import toast from 'react-hot-toast';
-import { HelpCircle, MessageSquare, AlertTriangle, Phone, Mail, ExternalLink, ChevronRight, Headset } from 'lucide-react';
+import { HelpCircle, MessageSquare, AlertTriangle, Phone, Mail, ExternalLink, ChevronRight, Headset, Paperclip, Download, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { subscribeToTableRefresh } from '../lib/realtime';
 import { useAuth } from '../hooks/useAuth';
-import { SupportChatMessage, SupportChatThread } from '../types/database';
+import { ChatAttachment, SupportChatMessage, SupportChatThread } from '../types/database';
 
 const FAQS = [
   { q: 'Do I ever use my own money?', a: 'Never. PayBridge deposits the full principal into your dedicated account before you execute any disbursements.' },
@@ -26,6 +26,90 @@ function throwIfError(error: any) {
   if (error) throw error;
 }
 
+/** Upload a list of Attachment objects to Supabase Storage and return ChatAttachment metadata. */
+async function uploadAttachments(ownerId: string, attachments: Attachment[]): Promise<ChatAttachment[]> {
+  const results: ChatAttachment[] = [];
+  for (const att of attachments) {
+    const ext = att.file.name.split('.').pop() ?? 'bin';
+    const path = `${ownerId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from('chat-attachments').upload(path, att.file, { upsert: false });
+    if (error) throw error;
+    const { data } = supabase.storage.from('chat-attachments').getPublicUrl(path);
+    results.push({ url: data.publicUrl, name: att.file.name, type: att.file.type });
+  }
+  return results;
+}
+
+/** Render a single attachment pill / image preview inside a message bubble. */
+function AttachmentPreview({ att, isWorker }: { att: ChatAttachment; isWorker: boolean }) {
+  const isImage = att.type.startsWith('image/');
+  const [lightbox, setLightbox] = useState(false);
+
+  if (isImage) {
+    return (
+      <>
+        <img
+          src={att.url}
+          alt={att.name}
+          onClick={() => setLightbox(true)}
+          className="rounded-lg mt-1 cursor-pointer hover:opacity-90 transition-opacity"
+          style={{ maxWidth: 200, maxHeight: 160, objectFit: 'cover', display: 'block' }}
+        />
+        {lightbox && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.85)' }}
+            onClick={() => setLightbox(false)}
+          >
+            <button
+              className="absolute top-4 right-4 text-white/70 hover:text-white"
+              onClick={() => setLightbox(false)}
+            >
+              <X size={28} />
+            </button>
+            <img
+              src={att.url}
+              alt={att.name}
+              className="rounded-xl"
+              style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+              onClick={e => e.stopPropagation()}
+            />
+            <a
+              href={att.url}
+              download={att.name}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-[#0B132F] bg-gold"
+              onClick={e => e.stopPropagation()}
+            >
+              <Download size={14} /> Download
+            </a>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <a
+      href={att.url}
+      target="_blank"
+      rel="noreferrer"
+      download={att.name}
+      className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium mt-1 transition-opacity hover:opacity-80"
+      style={{
+        background: isWorker ? 'rgba(11,19,47,0.25)' : 'rgba(201,168,76,0.15)',
+        color: isWorker ? '#F1F0DA' : '#C9A84C',
+        border: `1px solid ${isWorker ? 'rgba(241,240,218,0.15)' : 'rgba(201,168,76,0.3)'}`,
+      }}
+    >
+      <Paperclip size={11} />
+      <span className="max-w-[160px] truncate">{att.name}</span>
+      <Download size={11} />
+    </a>
+  );
+}
+
 export function SupportPage() {
   const { profile } = useAuth();
   const [showTicket, setShowTicket] = useState(false);
@@ -38,6 +122,7 @@ export function SupportPage() {
   const [chatThread, setChatThread] = useState<SupportChatThread | null>(null);
   const [chatMessages, setChatMessages] = useState<SupportChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   async function refreshChat() {
     if (!profile) {
@@ -69,7 +154,12 @@ export function SupportPage() {
         .eq('thread_id', thread.id)
         .order('created_at', { ascending: true });
       throwIfError(messagesError);
-      setChatMessages((messages ?? []) as SupportChatMessage[]);
+      // Normalise: older rows may not have the attachments column yet
+      const normalised = ((messages ?? []) as any[]).map(m => ({
+        ...m,
+        attachments: Array.isArray(m.attachments) ? m.attachments : [],
+      })) as SupportChatMessage[];
+      setChatMessages(normalised);
     } catch (error) {
       console.error('[paybridge] Failed to load support chat', error);
       toast.error(error instanceof Error ? error.message : 'Could not load support chat');
@@ -89,6 +179,11 @@ export function SupportPage() {
       () => { void refreshChat(); },
     );
   }, [profile?.id]);
+
+  // Auto-scroll to the bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   async function submitTicket() {
     if (!profile) return;
@@ -153,19 +248,23 @@ export function SupportPage() {
     if (!profile || (!chatInput.trim() && attachments.length === 0)) return;
     setBusy(true);
 
-    let body = chatInput.trim();
-    if (attachments.length > 0) {
-      const names = attachments.map(a => a.file.name).join(', ');
-      body = body ? `${body} [Attached: ${names}]` : `[Attached: ${names}]`;
-    }
+    const body = chatInput.trim();
 
     try {
       const thread = await getOrCreateChatThread();
+
+      // Upload files to storage first
+      let uploaded: ChatAttachment[] = [];
+      if (attachments.length > 0) {
+        uploaded = await uploadAttachments(profile.id, attachments);
+      }
+
       const { error } = await supabase.from('support_chat_messages').insert({
         thread_id: thread.id,
         sender_role: 'worker',
         sender_name: profile.full_name,
-        body,
+        body: body || ' ', // body is NOT NULL in DB; use space if only attachments
+        attachments: uploaded,
       });
       throwIfError(error);
 
@@ -294,17 +393,24 @@ export function SupportPage() {
             )}
             {chatMessages.map(msg => {
               const isWorker = msg.sender_role === 'worker';
+              const hasBody = msg.body && msg.body.trim() && msg.body.trim() !== ' ';
               return (
                 <div key={msg.id} className={`flex ${isWorker ? 'justify-end' : 'justify-start'}`}>
                   <div className={`flex max-w-[85%] gap-2 ${isWorker ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1" style={{ background: isWorker ? '#C9A84C' : 'rgba(255,255,255,0.1)' }}>
                       {isWorker ? <MessageSquare size={12} className="text-[#0B132F]" /> : <Headset size={12} className="text-cream" />}
                     </div>
-                    <div className={`p-3 rounded-lg text-sm ${isWorker ? 'bg-gold text-[#0B132F] rounded-tr-none' : 'bg-white/10 text-cream rounded-tl-none'}`}>{msg.body}</div>
+                    <div className={`p-3 rounded-lg text-sm ${isWorker ? 'bg-gold text-[#0B132F] rounded-tr-none' : 'bg-white/10 text-cream rounded-tl-none'}`}>
+                      {hasBody && <p>{msg.body}</p>}
+                      {(msg.attachments ?? []).map((att, i) => (
+                        <AttachmentPreview key={i} att={att} isWorker={isWorker} />
+                      ))}
+                    </div>
                   </div>
                 </div>
               );
             })}
+            <div ref={messagesEndRef} />
           </div>
           <div className="pt-3 border-t border-white/10 mt-auto">
             <MessageInputBar value={chatInput} onChange={setChatInput} onSend={handleSendChatMessage} placeholder="Type your message..." disabled={!profile || busy} />

@@ -1,11 +1,96 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { RiAlertLine, RiCheckboxCircleLine, RiInboxLine, RiMessage2Line } from 'react-icons/ri';
+import { Download, Paperclip, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { subscribeToTableRefresh } from '../../lib/realtime';
 import { formatDate, formatRelativeTime } from '../../lib/utils';
 import { MessageInputBar, Attachment } from '../../components/ui/MessageInputBar';
-import { SupportChatMessage, SupportChatThread, SupportTicket, WorkerGig, WorkerProfile } from '../../types/database';
+import { ChatAttachment, SupportChatMessage, SupportChatThread, SupportTicket, WorkerGig, WorkerProfile } from '../../types/database';
+
+/** Upload a list of Attachment objects to Supabase Storage (as admin) and return ChatAttachment metadata. */
+async function uploadAttachments(attachments: Attachment[]): Promise<ChatAttachment[]> {
+  const results: ChatAttachment[] = [];
+  for (const att of attachments) {
+    const ext = att.file.name.split('.').pop() ?? 'bin';
+    const path = `support-admin/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from('chat-attachments').upload(path, att.file, { upsert: false });
+    if (error) throw error;
+    const { data } = supabase.storage.from('chat-attachments').getPublicUrl(path);
+    results.push({ url: data.publicUrl, name: att.file.name, type: att.file.type });
+  }
+  return results;
+}
+
+/** Render a single attachment inside a chat bubble (admin side). */
+function AttachmentPreview({ att, isSupport }: { att: ChatAttachment; isSupport: boolean }) {
+  const isImage = att.type.startsWith('image/');
+  const [lightbox, setLightbox] = useState(false);
+
+  if (isImage) {
+    return (
+      <>
+        <img
+          src={att.url}
+          alt={att.name}
+          onClick={() => setLightbox(true)}
+          className="rounded-lg mt-1 cursor-pointer hover:opacity-90 transition-opacity block"
+          style={{ maxWidth: 200, maxHeight: 160, objectFit: 'cover' }}
+        />
+        {lightbox && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.85)' }}
+            onClick={() => setLightbox(false)}
+          >
+            <button
+              className="absolute top-4 right-4 text-white/70 hover:text-white"
+              onClick={() => setLightbox(false)}
+            >
+              <X size={28} />
+            </button>
+            <img
+              src={att.url}
+              alt={att.name}
+              className="rounded-xl"
+              style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+              onClick={e => e.stopPropagation()}
+            />
+            <a
+              href={att.url}
+              download={att.name}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-[#0B132F] bg-gold"
+              onClick={e => e.stopPropagation()}
+            >
+              <Download size={14} /> Download
+            </a>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <a
+      href={att.url}
+      target="_blank"
+      rel="noreferrer"
+      download={att.name}
+      className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium mt-1 transition-opacity hover:opacity-80"
+      style={{
+        background: isSupport ? 'rgba(11,19,47,0.25)' : 'rgba(201,168,76,0.15)',
+        color: isSupport ? '#F1F0DA' : '#C9A84C',
+        border: `1px solid ${isSupport ? 'rgba(241,240,218,0.15)' : 'rgba(201,168,76,0.3)'}`,
+      }}
+    >
+      <Paperclip size={11} />
+      <span className="max-w-[160px] truncate">{att.name}</span>
+      <Download size={11} />
+    </a>
+  );
+}
 
 type Ticket = SupportTicket & { worker: WorkerProfile | null; gig: WorkerGig | null };
 type ChatThread = SupportChatThread & { worker: WorkerProfile | null; messages: SupportChatMessage[] };
@@ -75,10 +160,14 @@ export function AdminInbox() {
       const gigById = new Map(gigs.map(gig => [gig.id, gig]));
       const messagesByThread = new Map<string, SupportChatMessage[]>();
 
-      ((messagesResult.data ?? []) as SupportChatMessage[]).forEach(message => {
-        const group = messagesByThread.get(message.thread_id) ?? [];
-        group.push(message);
-        messagesByThread.set(message.thread_id, group);
+      ((messagesResult.data ?? []) as any[]).forEach(message => {
+        const normalised: SupportChatMessage = {
+          ...message,
+          attachments: Array.isArray(message.attachments) ? message.attachments : [],
+        };
+        const group = messagesByThread.get(normalised.thread_id) ?? [];
+        group.push(normalised);
+        messagesByThread.set(normalised.thread_id, group);
       });
 
       const nextTickets: Ticket[] = ((ticketsResult.data ?? []) as SupportTicket[]).map(ticket => ({
@@ -153,16 +242,20 @@ export function AdminInbox() {
     if (!selectedThread || (!reply.trim() && attachments.length === 0)) return;
     setBusy(true);
     try {
-      let body = reply.trim();
+      const body = reply.trim();
+
+      // Upload files to storage first
+      let uploaded: ChatAttachment[] = [];
       if (attachments.length > 0) {
-        const names = attachments.map(a => a.file.name).join(', ');
-        body = body ? `${body} [Attached: ${names}]` : `[Attached: ${names}]`;
+        uploaded = await uploadAttachments(attachments);
       }
+
       const { error } = await supabase.from('support_chat_messages').insert({
         thread_id: selectedThread.id,
         sender_role: 'support',
         sender_name: 'PayBridge Support',
-        body,
+        body: body || ' ', // body is NOT NULL; use space if only attachments
+        attachments: uploaded,
       });
       throwIfError(error);
 
@@ -289,11 +382,16 @@ export function AdminInbox() {
                 <div className="flex-1 space-y-3 overflow-y-auto pr-2">
                   {selectedThread.messages.map(message => {
                     const isSupport = message.sender_role === 'support';
+                    const atts = (message as any).attachments ?? [];
+                    const hasBody = message.body && message.body.trim() && message.body.trim() !== ' ';
                     return (
                       <div key={message.id} className={`flex ${isSupport ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[80%] rounded p-3 text-sm ${isSupport ? 'bg-gold text-[#0B132F]' : 'bg-white/10 text-cream'}`}>
                           <p className="text-[11px] font-semibold opacity-70 mb-1">{message.sender_name}</p>
-                          <p className="whitespace-pre-wrap">{message.body}</p>
+                          {hasBody && <p className="whitespace-pre-wrap">{message.body}</p>}
+                          {atts.map((att: ChatAttachment, i: number) => (
+                            <AttachmentPreview key={i} att={att} isSupport={isSupport} />
+                          ))}
                         </div>
                       </div>
                     );

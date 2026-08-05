@@ -133,6 +133,12 @@ export function AccountPage() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [changingPassword, setChangingPassword] = useState(false);
+  
+  // MFA elevation state for changing password
+  const [needsMfaElevation, setNeedsMfaElevation] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaChallengeId, setMfaChallengeId] = useState('');
+  const [mfaFactorId, setMfaFactorId] = useState('');
   const [passwordChangedAt, setPasswordChangedAt] = useState<string | null>(() => {
     try { return localStorage.getItem(`pw_changed_at_${profile?.id ?? 'anon'}`); } catch { return null; }
   });
@@ -287,8 +293,41 @@ export function AccountPage() {
 
     setChangingPassword(true);
     try {
+      if (needsMfaElevation) {
+        if (mfaCode.replace(/\D/g, '').length !== 6) {
+          toast.error('Enter a valid 6-digit authenticator code');
+          setChangingPassword(false);
+          return;
+        }
+        const { error: verifyError } = await supabase.auth.mfa.verify({
+          factorId: mfaFactorId,
+          challengeId: mfaChallengeId,
+          code: mfaCode,
+        });
+        if (verifyError) throw verifyError;
+        setNeedsMfaElevation(false);
+        setMfaCode('');
+      }
+
       const { data, error } = await supabase.auth.updateUser({ password: passwordForm.new });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('AAL2') || error.message.includes('MFA')) {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totpFactor = factors?.totp?.[0];
+          if (totpFactor) {
+            const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+            if (challenge) {
+              setNeedsMfaElevation(true);
+              setMfaFactorId(totpFactor.id);
+              setMfaChallengeId(challenge.id);
+              toast.error('Two-factor authentication required. Please enter your code.');
+              setChangingPassword(false);
+              return;
+            }
+          }
+        }
+        throw error;
+      }
 
       // Persist the timestamp so it survives page reloads.
       // Supabase reflects the change in user.updated_at immediately after updateUser.
@@ -299,8 +338,10 @@ export function AccountPage() {
       toast.success('Password updated successfully');
       setIsPasswordModalOpen(false);
       setPasswordForm({ current: '', new: '', confirm: '' });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update password');
+      setNeedsMfaElevation(false);
+      setMfaCode('');
+    } catch (error: any) {
+      toast.error(error instanceof Error ? error.message : 'Could not update password');
     } finally {
       setChangingPassword(false);
     }
@@ -947,33 +988,74 @@ export function AccountPage() {
       </Modal>
 
       {/* Password Reset Modal */}
-      <Modal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} title="Update Password">
+      <Modal 
+        isOpen={isPasswordModalOpen} 
+        onClose={() => {
+          setIsPasswordModalOpen(false);
+          setNeedsMfaElevation(false);
+          setMfaCode('');
+        }} 
+        title={needsMfaElevation ? "Two-Factor Authentication" : "Update Password"}
+      >
         <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
-          <Input 
-            label="Current Password" 
-            type="password" 
-            value={passwordForm.current} 
-            onChange={e => setPasswordForm(p => ({ ...p, current: e.target.value }))} 
-            required 
-          />
-          <Input 
-            label="New Password" 
-            type="password" 
-            value={passwordForm.new} 
-            onChange={e => setPasswordForm(p => ({ ...p, new: e.target.value }))} 
-            required 
-            hint="Must be at least 8 characters"
-          />
-          <Input 
-            label="Confirm New Password" 
-            type="password" 
-            value={passwordForm.confirm} 
-            onChange={e => setPasswordForm(p => ({ ...p, confirm: e.target.value }))} 
-            required 
-          />
+          {needsMfaElevation ? (
+            <>
+              <p className="text-sm text-cream/70 mb-4">
+                Please verify your authenticator code to proceed with changing your password.
+              </p>
+              <Input
+                label="Authenticator Code"
+                type="text"
+                inputMode="numeric"
+                value={mfaCode}
+                onChange={e => setMfaCode(e.target.value)}
+                placeholder="000000"
+                required
+                autoFocus
+              />
+            </>
+          ) : (
+            <>
+              <Input 
+                label="Current Password" 
+                type="password" 
+                value={passwordForm.current} 
+                onChange={e => setPasswordForm(p => ({ ...p, current: e.target.value }))} 
+                required 
+              />
+              <Input 
+                label="New Password" 
+                type="password" 
+                value={passwordForm.new} 
+                onChange={e => setPasswordForm(p => ({ ...p, new: e.target.value }))} 
+                required 
+                hint="Must be at least 8 characters"
+              />
+              <Input 
+                label="Confirm New Password" 
+                type="password" 
+                value={passwordForm.confirm} 
+                onChange={e => setPasswordForm(p => ({ ...p, confirm: e.target.value }))} 
+                required 
+              />
+            </>
+          )}
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setIsPasswordModalOpen(false)}>Cancel</Button>
-            <Button type="submit" className="flex-1" loading={changingPassword}>Update Password</Button>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              className="flex-1" 
+              onClick={() => {
+                setIsPasswordModalOpen(false);
+                setNeedsMfaElevation(false);
+                setMfaCode('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" loading={changingPassword}>
+              {needsMfaElevation ? 'Verify & Update' : 'Update Password'}
+            </Button>
           </div>
         </form>
       </Modal>

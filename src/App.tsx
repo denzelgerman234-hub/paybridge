@@ -25,6 +25,7 @@ import { CodeOfConduct }       from './pages/static/CodeOfConduct';
 import { Login }          from './pages/auth/Login';
 import { VerifyEmail }    from './pages/auth/VerifyEmail';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
+import { ResetPassword }  from './pages/auth/ResetPassword';
 import { AuthCallback }   from './pages/auth/AuthCallback';
 
 // Onboarding
@@ -132,6 +133,7 @@ export default function App() {
           <Route path="/login"           element={<Login />} />
           <Route path="/signup"          element={<Navigate to="/apply" replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password"  element={<ResetPassword />} />
           <Route path="/verify-email"    element={<VerifyEmail />} />
           {/*
            * /auth/callback - Supabase email verification redirect target.

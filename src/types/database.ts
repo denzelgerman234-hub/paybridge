@@ -169,12 +169,21 @@ export interface SupportChatThread {
   updated_at: string;
 }
 
+/** A single file attachment stored in the chat-attachments bucket. */
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  type: string; // MIME type e.g. "image/png"
+}
+
 export interface SupportChatMessage {
   id: string;
   thread_id: string;
   sender_role: 'worker' | 'support';
   sender_name: string;
   body: string;
+  /** Uploaded file attachments. Empty array when there are none. */
+  attachments: ChatAttachment[];
   created_at: string;
 }
 
@@ -355,7 +364,6 @@ export interface WorkerSignedDocument {
   w9_tax_id_type?: 'ssn' | 'ein' | null;
   w9_tax_id_last4?: string | null;
 }
-
 
 export type WorkerApplicationStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
 

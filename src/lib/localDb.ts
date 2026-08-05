@@ -650,6 +650,7 @@ export const localDb = {
           sender_role: 'support',
           sender_name: 'PayBridge Support',
           body: 'Hello. How can we help today?',
+          attachments: [],
           created_at: now(),
         });
       }
@@ -659,6 +660,7 @@ export const localDb = {
         sender_role: senderRole,
         sender_name: senderName,
         body,
+        attachments: [],
         created_at: now(),
       });
       thread.updated_at = now();

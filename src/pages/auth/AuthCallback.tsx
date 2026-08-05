@@ -76,7 +76,11 @@ export function AuthCallback() {
   useEffect(() => {
     function markSuccess() {
       setState('success');
-      setTimeout(() => navigate('/application-status', { replace: true }), 800);
+      if (type === 'recovery') {
+        setTimeout(() => navigate('/reset-password', { replace: true }), 800);
+      } else {
+        setTimeout(() => navigate('/application-status', { replace: true }), 800);
+      }
     }
 
     function classifyError(error: any) {

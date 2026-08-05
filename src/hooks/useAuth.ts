@@ -47,6 +47,12 @@ export function useAuth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: any, session: any) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          // Do NOT mark as authenticated — send user to the reset form instead.
+          // The session is available so updateUser() will work once they submit.
+          navigate('/reset-password', { replace: true });
+          return;
+        }
         if (session?.user) {
           // Supabase only creates a real session after email confirmation.
           // In mock mode we also guard via signInWithPassword.

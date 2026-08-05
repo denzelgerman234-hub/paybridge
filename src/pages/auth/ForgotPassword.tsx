@@ -21,7 +21,10 @@ export function ForgotPassword() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { emailRedirectTo: `${window.location.origin}/auth/callback?type=recovery` },
+    );
     setLoading(false);
     if (err) {
       setError('Could not send the reset link. Please try again.');

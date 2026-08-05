@@ -27,7 +27,13 @@ export function ForgotPassword() {
     );
     setLoading(false);
     if (err) {
-      setError('Could not send the reset link. Please try again.');
+      console.error('[paybridge] resetPasswordForEmail error:', err);
+      const isRateLimit = err.message?.toLowerCase().includes('rate') || err.status === 429 || (err as any)?.status === 429;
+      setError(
+        isRateLimit
+          ? 'Too many requests. Please wait a few minutes before trying again.'
+          : err.message || 'Could not send the reset link. Please try again.',
+      );
       return;
     }
     setSent(true);

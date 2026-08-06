@@ -38,7 +38,7 @@ const NAVY8  = '#12203F';
 export function DashboardPage() {
   const { profile, isLoading } = useAuth();
   const { gigs, loading: gigsLoading } = useGigs(profile?.id);
-  const { totalEarned, availableBalance } = useWallet();
+  const { totalEarned, availableBalance } = useWallet(profile?.id);
 
   if (isLoading || gigsLoading) return <LoadingSpinner text="Loading dashboard..." />;
   if (!profile) return null;

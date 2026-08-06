@@ -38,6 +38,22 @@ serve(async (req) => {
 
     if (eventError) throw eventError;
 
+    // Send a system message to the operations room
+    const { data: thread } = await supabase
+      .from('operation_threads')
+      .select('id')
+      .eq('gig_id', gig_id)
+      .maybeSingle();
+      
+    if (thread) {
+      await supabase.from('operation_messages').insert({
+        thread_id: thread.id,
+        sender_role: 'operations',
+        sender_name: 'System',
+        body: `Funding of ${amount} has been deposited to the dedicated account. Worker, please confirm receipt of funds.`,
+      });
+    }
+
     return json({ success: true, message: 'Funding event recorded, pending confirmation' });
   } catch (err) {
     return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);

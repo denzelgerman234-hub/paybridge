@@ -33,6 +33,22 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    // Send a system message to the operations room
+    const { data: thread } = await supabase
+      .from('operation_threads')
+      .select('id')
+      .eq('gig_id', gig_id)
+      .maybeSingle();
+
+    if (thread) {
+      await supabase.from('operation_messages').insert({
+        thread_id: thread.id,
+        sender_role: 'system',
+        sender_name: 'System',
+        body: `Worker has confirmed receipt of funds. Status is now In Progress.`,
+      });
+    }
+
     return json({ success: true, message: 'Funding confirmed' });
   } catch (err) {
     return json({ error: err.message }, err.message?.includes('required') ? 400 : 500);

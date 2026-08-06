@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWallet } from '../hooks/useWallet';
+import { useAuth } from '../hooks/useAuth';
 import { useGigs } from '../hooks/useGigs';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -28,8 +29,9 @@ const filters: { value: ActivityFilter; label: string }[] = [
 ];
 
 export function ActivityPage() {
-  const { commissions, fundingEvents, loading: walletLoading } = useWallet();
-  const { gigs, loading: gigsLoading } = useGigs();
+  const { profile } = useAuth();
+  const { commissions, fundingEvents, loading: walletLoading } = useWallet(profile?.id);
+  const { gigs, loading: gigsLoading } = useGigs(profile?.id);
   const [filter, setFilter] = useState<ActivityFilter>('all');
 
   if (walletLoading || gigsLoading) return <LoadingSpinner text="Loading activity..." />;

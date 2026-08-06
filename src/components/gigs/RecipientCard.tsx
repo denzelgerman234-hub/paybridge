@@ -41,7 +41,7 @@ function DetailRow({ label, value, copyValue = value }: CopyRow) {
     <div className="flex items-center justify-between gap-3 border-t py-2 first:border-t-0" style={{ borderColor: BORDER }}>
       <div className="min-w-0">
         <p className="label-caps mb-0.5">{label}</p>
-        <p className="select-text break-words text-sm font-semibold" style={{ color: CREAM }}>{value}</p>
+        <p className="select-text whitespace-pre-wrap break-words text-sm font-semibold" style={{ color: CREAM }}>{value}</p>
       </div>
       <button
         type="button"

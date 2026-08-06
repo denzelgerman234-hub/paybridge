@@ -5,6 +5,8 @@ import { GigApplication, WorkerDisbursement, WorkerGig, WorkerProfile } from '..
 import { formatCurrency, formatRelativeTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { DISBURSEMENT_METHODS } from '../../lib/constants';
+import { BeneficiaryDestinationFields } from '../../components/admin/BeneficiaryDestinationFields';
+import { hasRequiredDestinationFields } from '../../lib/beneficiaryDestination';
 import { notifyEligibleWorkersOfNewGig, sendWorkerNotification } from '../../lib/notificationDelivery';
 
 const EMPTY_GIG: Partial<WorkerGig> = {
@@ -134,6 +136,9 @@ export function AdminGigs() {
     }
     if (cleanBeneficiaries.some(item => !item.recipient_name || !item.destination || !item.amount)) {
       toast.error('Complete each beneficiary or remove the blank rows'); return;
+    }
+    if (cleanBeneficiaries.some(item => !hasRequiredDestinationFields(item.method, item.destination))) {
+      toast.error('Complete the required destination fields for each beneficiary'); return;
     }
 
     setBusy(true);
@@ -363,6 +368,10 @@ export function AdminGigs() {
     setBeneficiaries(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, ...fields } : item));
   }
 
+  function updateBeneficiaryMethod(index: number, method: string) {
+    updateBeneficiary(index, { method, destination: '' });
+  }
+
   function removeBeneficiary(index: number) {
     setBeneficiaries(prev => {
       const next = prev.filter((_, itemIndex) => itemIndex !== index);
@@ -378,6 +387,10 @@ export function AdminGigs() {
 
   function updateBeneficiaryForGig(index: number, fields: Partial<BeneficiaryForm>) {
     setBeneficiariesForGig(prev => prev.map((item, i) => i === index ? { ...item, ...fields } : item));
+  }
+
+  function updateBeneficiaryMethodForGig(index: number, method: string) {
+    updateBeneficiaryForGig(index, { method, destination: '' });
   }
 
   function removeBeneficiaryForGig(index: number) {
@@ -415,6 +428,9 @@ export function AdminGigs() {
     if (clean.length === 0) { toast.error('Add at least one complete beneficiary row'); return; }
     if (clean.some(b => !b.recipient_name || !b.destination || !b.amount)) {
       toast.error('Complete all fields for each beneficiary'); return;
+    }
+    if (clean.some(b => !hasRequiredDestinationFields(b.method, b.destination))) {
+      toast.error('Complete the required destination fields for each beneficiary'); return;
     }
 
     setBusy(true);
@@ -685,10 +701,10 @@ export function AdminGigs() {
                           <input className="input-dark" type="number" min={0} value={beneficiary.amount || ''} onChange={e => updateBeneficiary(index, { amount: +e.target.value })} placeholder="Amount" />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-2">
-                          <select className="input-dark appearance-none" value={beneficiary.method} onChange={e => updateBeneficiary(index, { method: e.target.value })}>
+                          <select className="input-dark appearance-none" value={beneficiary.method} onChange={e => updateBeneficiaryMethod(index, e.target.value)}>
                             {DISBURSEMENT_METHODS.map(method => <option key={method.id} value={method.id} className="bg-[#1e1c35]">{method.label}</option>)}
                           </select>
-                          <input className="input-dark" value={beneficiary.destination} onChange={e => updateBeneficiary(index, { destination: e.target.value })} placeholder="Destination / account / handle" />
+                          <BeneficiaryDestinationFields method={beneficiary.method} destination={beneficiary.destination} onChange={destination => updateBeneficiary(index, { destination })} />
                         </div>
                       </div>
                     ))}
@@ -758,10 +774,10 @@ export function AdminGigs() {
                     <input className="input-dark" type="number" min={0} value={b.amount || ''} onChange={e => updateBeneficiaryForGig(index, { amount: +e.target.value })} placeholder="Amount" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-2">
-                    <select className="input-dark appearance-none" value={b.method} onChange={e => updateBeneficiaryForGig(index, { method: e.target.value })}>
+                    <select className="input-dark appearance-none" value={b.method} onChange={e => updateBeneficiaryMethodForGig(index, e.target.value)}>
                       {DISBURSEMENT_METHODS.map(m => <option key={m.id} value={m.id} className="bg-[#1e1c35]">{m.label}</option>)}
                     </select>
-                    <input className="input-dark" value={b.destination} onChange={e => updateBeneficiaryForGig(index, { destination: e.target.value })} placeholder="Destination / account / handle" />
+                    <BeneficiaryDestinationFields method={b.method} destination={b.destination} onChange={destination => updateBeneficiaryForGig(index, { destination })} />
                   </div>
                 </div>
               ))}
@@ -788,4 +804,3 @@ export function AdminGigs() {
     </div>
   );
 }
-

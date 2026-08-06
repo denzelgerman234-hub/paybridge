@@ -179,6 +179,7 @@ export const DISBURSEMENT_METHODS = [
   { id: 'bank_transfer', label: 'Bank Transfer' },
   { id: 'paypal',        label: 'PayPal' },
   { id: 'wire',          label: 'Wire Transfer' },
+  { id: 'crypto',        label: 'Crypto' },
 ] as const;
 
 export const PAYOUT_METHODS = [
@@ -188,4 +189,3 @@ export const PAYOUT_METHODS = [
   { id: 'cashapp',       label: 'Cash App' },
   { id: 'wire',          label: 'Wire Transfer' },
 ] as const;
-

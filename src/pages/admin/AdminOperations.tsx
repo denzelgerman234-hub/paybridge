@@ -7,6 +7,8 @@ import { formatCurrency, formatDate, formatRelativeTime } from '../../lib/utils'
 import { MessageInputBar, Attachment } from '../../components/ui/MessageInputBar';
 import { OperationMessage, OperationThread, WorkerDisbursement, WorkerGig, WorkerProfile } from '../../types/database';
 import { DISBURSEMENT_METHODS } from '../../lib/constants';
+import { BeneficiaryDestinationFields } from '../../components/admin/BeneficiaryDestinationFields';
+import { hasRequiredDestinationFields } from '../../lib/beneficiaryDestination';
 import { sendWorkerNotification } from '../../lib/notificationDelivery';
 
 type BeneficiaryForm = Pick<WorkerDisbursement, 'recipient_name' | 'amount' | 'method' | 'destination'>;
@@ -327,6 +329,9 @@ export function AdminOperations() {
     if (clean.some(b => !b.recipient_name || !b.destination || !b.amount)) {
       toast.error('Complete all fields for each beneficiary'); return;
     }
+    if (clean.some(b => !hasRequiredDestinationFields(b.method, b.destination))) {
+      toast.error('Complete the required destination fields for each beneficiary'); return;
+    }
 
     setSavingBeneficiaries(true);
     try {
@@ -510,10 +515,10 @@ export function AdminOperations() {
                       <input className="input-dark" type="number" min={0} value={b.amount || ''} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, amount: +e.target.value } : item))} placeholder="Amount" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-2">
-                      <select className="input-dark appearance-none text-xs" value={b.method} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, method: e.target.value } : item))}>
+                      <select className="input-dark appearance-none text-xs" value={b.method} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, method: e.target.value, destination: '' } : item))}>
                         {DISBURSEMENT_METHODS.map(m => <option key={m.id} value={m.id} className="bg-[#1e1c35]">{m.label}</option>)}
                       </select>
-                      <input className="input-dark" value={b.destination} onChange={e => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, destination: e.target.value } : item))} placeholder="Destination / account" />
+                      <BeneficiaryDestinationFields method={b.method} destination={b.destination} onChange={destination => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, destination } : item))} />
                     </div>
                   </div>
                 ))}

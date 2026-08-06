@@ -141,6 +141,7 @@ export function AdminOperations() {
         { table: 'operation_threads' },
         { table: 'operation_messages' },
         { table: 'worker_disbursements' },
+        { table: 'worker_gigs' },
       ],
       () => { void refresh(false); },
     );

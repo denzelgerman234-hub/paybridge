@@ -22,9 +22,13 @@ export function AdminApplications() {
   const [updating, setUpdating] = useState(false);
 
   async function refresh() {
-    const data = await listApplications('all');
-    setApps(data);
-    setSelected(curr => curr ? data.find(a => a.id === curr.id) ?? null : null);
+    try {
+      const data = await listApplications('all');
+      setApps(data);
+      setSelected(curr => curr ? data.find(a => a.id === curr.id) ?? null : null);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to load applications');
+    }
   }
 
   useEffect(() => {

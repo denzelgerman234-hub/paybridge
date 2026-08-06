@@ -42,7 +42,7 @@ export async function listApplications(
 
   if (error) {
     console.error('[paybridge] listApplications error', error);
-    return [];
+    throw error;
   }
   return (data ?? []) as WorkerApplication[];
 }

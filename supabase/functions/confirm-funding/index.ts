@@ -45,7 +45,7 @@ serve(async (req) => {
     if (totalFunded >= Number(gig?.total_principal || 0)) {
       await supabase
         .from('worker_gigs')
-        .update({ funded: true, funded_at: new Date().toISOString(), status: 'funded' })
+        .update({ funded: true, funded_at: new Date().toISOString(), status: 'funded', funding_status: 'funded' })
         .eq('id', event.gig_id);
     }
 

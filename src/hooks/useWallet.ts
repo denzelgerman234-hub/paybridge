@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { localDb } from '../lib/localDb';
 import { supabase, supabaseConfig } from '../lib/supabase';
+import { subscribeToTableRefresh } from '../lib/realtime';
 import { CommissionLedger, CommissionPayout, FundingEvent, LocalAuditEvent, StorageObjectRecord } from '../types/database';
 import { MOCK_USER_ID } from '../lib/mockData';
 
@@ -68,7 +69,22 @@ export function useWallet(workerId = MOCK_USER_ID) {
     }
 
     void refreshFromSupabase(cancelledRef);
-    return () => { cancelledRef.current = true; };
+    const unsubscribe = subscribeToTableRefresh(
+      `worker-wallet:${workerId}`,
+      [
+        { table: 'funding_events', filter: `worker_id=eq.${workerId}` },
+        { table: 'commission_ledger', filter: `worker_id=eq.${workerId}` },
+        { table: 'commission_payouts', filter: `worker_id=eq.${workerId}` },
+        { table: 'audit_events' },
+        { table: 'storage_objects' },
+      ],
+      () => { void refreshFromSupabase(cancelledRef); }
+    );
+
+    return () => { 
+      cancelledRef.current = true; 
+      unsubscribe();
+    };
   }, [workerId, isLocal]);
 
   const totalEarned = commissions.reduce((sum, c) => sum + Number(c.amount), 0);

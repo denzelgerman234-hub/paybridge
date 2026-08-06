@@ -178,6 +178,7 @@ export function useGigs(workerId?: string) {
       [
         ...(workerId ? [{ table: 'operation_threads', filter: `worker_id=eq.${workerId}` }] : []),
         { table: 'operation_messages' },
+        ...(workerId ? [{ table: 'worker_gigs', filter: `worker_id=eq.${workerId}` }] : []),
       ],
       () => { void refreshFromSupabase(cancelledRef, false); },
     );

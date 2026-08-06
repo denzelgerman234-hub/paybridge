@@ -29,12 +29,12 @@ const filters: { value: ActivityFilter; label: string }[] = [
 ];
 
 export function ActivityPage() {
-  const { profile } = useAuth();
+  const { profile, isLoading: authLoading } = useAuth();
   const { commissions, fundingEvents, loading: walletLoading } = useWallet(profile?.id);
   const { gigs, loading: gigsLoading } = useGigs(profile?.id);
   const [filter, setFilter] = useState<ActivityFilter>('all');
 
-  if (walletLoading || gigsLoading) return <LoadingSpinner text="Loading activity..." />;
+  if (authLoading || walletLoading || gigsLoading) return <LoadingSpinner text="Loading activity..." />;
 
   const events = [
     ...commissions.map(c => ({

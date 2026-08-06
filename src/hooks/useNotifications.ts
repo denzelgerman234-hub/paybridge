@@ -109,7 +109,31 @@ export function useNotifications(workerId?: string) {
       await ensureKycReminderFromSupabase();
       await refreshFromSupabase(cancelledRef);
     })();
-    return () => { cancelledRef.current = true; };
+
+    // Subscribe to real-time changes for this worker's notifications so the
+    // UI updates automatically without requiring a page reload.
+    let unsubscribeRealtime: (() => void) | undefined;
+    if (workerId && typeof supabase.channel === 'function') {
+      const channelName = `notifications-worker-${workerId}`;
+      let channel = supabase.channel(channelName);
+      channel = channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `worker_id=eq.${workerId}`,
+        },
+        () => { void refreshFromSupabase(cancelledRef); },
+      );
+      const subscribed = channel.subscribe();
+      unsubscribeRealtime = () => { void supabase.removeChannel(subscribed); };
+    }
+
+    return () => {
+      cancelledRef.current = true;
+      unsubscribeRealtime?.();
+    };
   }, [workerId, isLocal]);
 
   const unreadCount = useMemo(

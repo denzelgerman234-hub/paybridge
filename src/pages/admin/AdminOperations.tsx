@@ -502,8 +502,9 @@ export function AdminOperations() {
                   <button onClick={() => setShowBeneficiariesForm(false)} className="text-cream/50 hover:text-cream text-xs">Cancel</button>
                 </div>
                 
-                {beneficiaries.map((b, index) => (
-                  <div key={index} className="rounded border border-white/8 p-3 space-y-2 bg-[#0B132F]">
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                  {beneficiaries.map((b, index) => (
+                    <div key={index} className="rounded border border-white/8 p-3 space-y-2 bg-[#0B132F]">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-bold text-cream">Recipient {index + 1}</p>
                       <button type="button" className="text-cream/45 hover:text-cream" onClick={() => setBeneficiaries(prev => prev.filter((_, i) => i !== index))} aria-label="Remove">
@@ -521,7 +522,8 @@ export function AdminOperations() {
                       <BeneficiaryDestinationFields method={b.method} destination={b.destination} onChange={destination => setBeneficiaries(prev => prev.map((item, i) => i === index ? { ...item, destination } : item))} />
                     </div>
                   </div>
-                ))}
+                  ))}
+                </div>
 
                 <button
                   type="button"

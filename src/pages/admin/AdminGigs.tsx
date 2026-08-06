@@ -609,14 +609,14 @@ export function AdminGigs() {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 sm:py-8">
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowCreate(false)} />
-          <div className="relative w-full max-w-lg card p-6 max-h-[calc(100dvh-3rem)] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
+          <div className="relative w-full max-w-lg card flex flex-col max-h-[calc(100dvh-3rem)]">
+            <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-white/10">
               <h2 className="font-bold text-cream text-lg">Create New Gig</h2>
               <button onClick={() => setShowCreate(false)} className="text-cream/50 hover:text-cream"><RiCloseLine size={18} /></button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-cream/50 uppercase tracking-wide">Client Name *</label>
                 <input className="input-dark" value={form.client_name} onChange={e => setForm(p=>({...p,client_name:e.target.value}))} placeholder="e.g. Acme Corp" />
@@ -716,28 +716,31 @@ export function AdminGigs() {
                 <label className="block text-xs font-semibold text-cream/50 uppercase tracking-wide">Notes</label>
                 <textarea className="input-dark resize-none" rows={3} value={form.notes||''} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Instructions for the worker..." />
               </div>
-
-              <div className="flex gap-3 pt-2">
-                <button disabled={busy} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => setShowCreate(false)}>Cancel</button>
-                <button disabled={busy} className="btn-primary flex-1 disabled:opacity-50" onClick={createGig}><RiAddLine size={15}/> Create Gig</button>
-              </div>
+            </div>
+            <div className="flex-shrink-0 flex gap-3 p-6 border-t border-white/10 bg-[#0B132F]/50 rounded-b-xl">
+              <button disabled={busy} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button disabled={busy} className="btn-primary flex-1 disabled:opacity-50" onClick={createGig}><RiAddLine size={15}/> Create Gig</button>
             </div>
           </div>
         </div>
       )}
 
       {showFund && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 sm:py-8">
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowFund(null)} />
-          <div className="relative w-full max-w-sm card p-6 max-h-[calc(100dvh-3rem)] overflow-y-auto">
-            <h2 className="font-bold text-cream mb-1">Record Dedicated Account Funding</h2>
-            <p className="text-xs text-cream/50 mb-4">{showFund.client_name} - {formatCurrency(showFund.total_principal)}</p>
-            <div className="p-3 rounded mb-4 text-xs text-amber-400" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
-              <span style={{color:'#C9A84C',fontSize:16}}>!</span>
-              Confirm that <strong>{formatCurrency(showFund.total_principal)}</strong> has been deposited into the worker's dedicated disbursement account before marking as funded.
+          <div className="relative w-full max-w-sm card flex flex-col max-h-[calc(100dvh-3rem)]">
+            <div className="flex-shrink-0 p-6 border-b border-white/10">
+              <h2 className="font-bold text-cream mb-1">Record Dedicated Account Funding</h2>
+              <p className="text-xs text-cream/50">{showFund.client_name} - {formatCurrency(showFund.total_principal)}</p>
             </div>
-            <input className="input-dark mb-4" value={fundRef} onChange={e => setFundRef(e.target.value)} placeholder="Funding reference (e.g. FUND-2026-0004)" />
-            <div className="flex gap-3">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="p-3 rounded text-xs text-amber-400" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <span style={{color:'#C9A84C',fontSize:16}}>!</span>
+                Confirm that <strong>{formatCurrency(showFund.total_principal)}</strong> has been deposited into the worker's dedicated disbursement account before marking as funded.
+              </div>
+              <input className="input-dark" value={fundRef} onChange={e => setFundRef(e.target.value)} placeholder="Funding reference (e.g. FUND-2026-0004)" />
+            </div>
+            <div className="flex-shrink-0 flex gap-3 p-6 border-t border-white/10 bg-[#0B132F]/50 rounded-b-xl">
               <button disabled={busy} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => setShowFund(null)}>Cancel</button>
               <button disabled={busy} className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50" onClick={() => fundGig(showFund)}>
                 <RiMoneyDollarCircleLine size={15}/> Confirm Funding
@@ -749,18 +752,20 @@ export function AdminGigs() {
 
       {/* ── Add Beneficiaries Modal (shown after worker confirms funding receipt) ── */}
       {showBeneficiaries && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 sm:py-8">
           <div className="absolute inset-0 bg-black/70" onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }} />
-          <div className="relative w-full max-w-lg card p-6 max-h-[calc(100dvh-3rem)] overflow-y-auto">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-bold text-cream text-lg">Add Disbursement Recipients</h2>
-              <button onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }} className="text-cream/50 hover:text-cream"><RiCloseLine size={18} /></button>
+          <div className="relative w-full max-w-lg card flex flex-col max-h-[calc(100dvh-3rem)]">
+            <div className="flex-shrink-0 p-6 border-b border-white/10">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-bold text-cream text-lg">Add Disbursement Recipients</h2>
+                <button onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }} className="text-cream/50 hover:text-cream"><RiCloseLine size={18} /></button>
+              </div>
+              <p className="text-xs text-cream/50">
+                {showBeneficiaries.client_name} — worker has confirmed receipt of <strong className="text-gold">{formatCurrency(showBeneficiaries.total_principal)}</strong>. Add recipients below and submit to send instructions to the worker.
+              </p>
             </div>
-            <p className="text-xs text-cream/50 mb-5">
-              {showBeneficiaries.client_name} — worker has confirmed receipt of <strong className="text-gold">{formatCurrency(showBeneficiaries.total_principal)}</strong>. Add recipients below and submit to send instructions to the worker.
-            </p>
 
-            <div className="space-y-3 mb-5">
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
               {beneficiariesForGig.map((b, index) => (
                 <div key={index} className="rounded border border-white/8 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-3">
@@ -791,8 +796,7 @@ export function AdminGigs() {
                 + Add recipient ({beneficiariesForGig.length}/{MAX_BENEFICIARIES})
               </button>
             </div>
-
-            <div className="flex gap-3">
+            <div className="flex-shrink-0 flex gap-3 p-6 border-t border-white/10 bg-[#0B132F]/50 rounded-b-xl">
               <button disabled={busy} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => { setShowBeneficiaries(null); setBeneficiariesForGig([]); }}>Cancel</button>
               <button disabled={busy} className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50" onClick={saveBeneficiaries}>
                 <RiCheckLine size={15} /> Send to Worker

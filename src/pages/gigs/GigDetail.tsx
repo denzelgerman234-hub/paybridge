@@ -110,6 +110,10 @@ export function GigDetail() {
 
   async function handleSubmitProof() {
     if (!proofTarget || !proofTxid.trim()) return;
+    if (!proofFile) {
+      toast.error('Please attach a screenshot or PDF as proof before submitting.');
+      return;
+    }
     setSubmittingProof(true);
     try {
       await submitProof(proofTarget.id, proofTxid.trim(), proofFile);
@@ -360,17 +364,22 @@ export function GigDetail() {
             />
 
             <div className="space-y-1.5">
-              <label className="label-caps block">Proof file</label>
+              <div className="flex items-center gap-2">
+                <label className="label-caps block">Proof file</label>
+                {!proofFile && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171' }}>Required</span>
+                )}
+              </div>
               <label
                 className="flex cursor-pointer flex-col items-center justify-center gap-2 p-5 text-center transition-colors"
-                style={{ background: NAVY8, border: `1px dashed ${proofFile ? 'rgba(125,201,154,0.45)' : BORDER}`, borderRadius: 4 }}
+                style={{ background: NAVY8, border: `1px dashed ${proofFile ? 'rgba(125,201,154,0.45)' : 'rgba(220,38,38,0.35)'}`, borderRadius: 4 }}
               >
-                {proofFile ? <FileCheck2 size={24} color={SAGE} /> : <FileUp size={24} color={GOLD} />}
+                {proofFile ? <FileCheck2 size={24} color={SAGE} /> : <FileUp size={24} color="#f87171" />}
                 <span className="font-bold text-sm" style={{ color: CREAM }}>
-                  {proofFile ? proofFile.name : 'Attach screenshot or PDF proof'}
+                  {proofFile ? proofFile.name : 'Attach screenshot or PDF — required'}
                 </span>
                 <span className="text-xs" style={{ color: DIM }}>
-                  PNG, JPG, or PDF. Include the completed transfer screen when available.
+                  PNG, JPG, or PDF. Include the completed transfer screen.
                 </span>
                 <input className="sr-only" type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => setProofFile(e.target.files?.[0] ?? null)} />
               </label>
@@ -383,7 +392,7 @@ export function GigDetail() {
 
             <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
               <Button variant="ghost" className="flex-1" onClick={closeProofModal}>Cancel</Button>
-              <Button className="flex-1" disabled={!proofTxid.trim()} loading={submittingProof} onClick={handleSubmitProof}>
+              <Button className="flex-1" disabled={!proofTxid.trim() || !proofFile} loading={submittingProof} onClick={handleSubmitProof}>
                 Submit Proof
               </Button>
             </div>

@@ -64,7 +64,12 @@ export function AdminOperations() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  
+
+  // Reject-proof state: disbursement id → comment draft
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectComment, setRejectComment] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+
   // Post-funding beneficiary assignment
   const [showBeneficiariesForm, setShowBeneficiariesForm] = useState(false);
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryForm[]>([]);
@@ -190,9 +195,105 @@ export function AdminOperations() {
     if (roomId !== selectedId) {
       setShowBeneficiariesForm(false);
       setBeneficiaries([]);
+      setRejectingId(null);
+      setRejectComment('');
     }
     setSelectedId(roomId);
     setMobileView('detail');
+  }
+
+  // ── Proof verify / reject ─────────────────────────────────────────────────
+
+  async function handleVerifyDisbursement(disbursement: WorkerDisbursement) {
+    if (!selected) return;
+    setActionBusy(true);
+    try {
+      throwIfError((await supabase.from('worker_disbursements').update({ status: 'verified', verified_at: new Date().toISOString() }).eq('id', disbursement.id)).error);
+
+      // Check if all disbursements for this gig are now verified
+      const remaining = selected.disbursements.filter(d => d.id !== disbursement.id && d.status !== 'verified');
+      if (remaining.length === 0 && selected.gig) {
+        throwIfError((await supabase.from('worker_gigs').update({ funding_status: 'verified_complete' }).eq('id', selected.gig.id)).error);
+      }
+
+      // Post system message
+      if (selected) {
+        await supabase.from('operation_messages').insert({
+          thread_id: selected.id,
+          sender_role: 'system',
+          sender_name: 'Operations',
+          body: `✅ Proof verified for ${disbursement.recipient_name} (${formatCurrency(disbursement.amount)}).`,
+        });
+      }
+
+      if (selected.gig?.worker_id) {
+        await sendWorkerNotification({
+          workerId: selected.gig.worker_id,
+          kind: 'disbursement_update',
+          title: 'Disbursement proof verified',
+          body: `Your proof for ${disbursement.recipient_name} (${formatCurrency(disbursement.amount)}) has been verified by Operations.`,
+          href: `/gigs/${selected.gig.id}#operations`,
+        });
+      }
+
+      await refresh(false);
+      toast.success('Disbursement verified');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not verify disbursement');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function handleRejectDisbursement(disbursement: WorkerDisbursement) {
+    if (!selected || !rejectComment.trim()) {
+      toast.error('Please enter a rejection reason.');
+      return;
+    }
+    setActionBusy(true);
+    try {
+      const comment = rejectComment.trim();
+
+      throwIfError((await supabase.from('worker_disbursements').update({
+        status: 'proof_rejected',
+        notes: comment,
+      }).eq('id', disbursement.id)).error);
+
+      if (selected.gig) {
+        throwIfError((await supabase.from('worker_gigs').update({ funding_status: 'proof_rejected' }).eq('id', selected.gig.id)).error);
+      }
+
+      // Post system message visible in Operations chat
+      await supabase.from('operation_messages').insert({
+        thread_id: selected.id,
+        sender_role: 'system',
+        sender_name: 'Operations',
+        body: `❌ Proof rejected for ${disbursement.recipient_name} (${formatCurrency(disbursement.amount)}): ${comment}`,
+      });
+
+      // Update thread timestamp so it surfaces to top
+      await supabase.from('operation_threads').update({ updated_at: new Date().toISOString() }).eq('id', selected.id);
+
+      // Send in-app worker notification
+      if (selected.gig?.worker_id) {
+        await sendWorkerNotification({
+          workerId: selected.gig.worker_id,
+          kind: 'disbursement_update',
+          title: 'Proof rejected — please resubmit',
+          body: `Your proof for ${disbursement.recipient_name} was rejected: ${comment}. Open the gig to resubmit.`,
+          href: `/gigs/${selected.gig.id}`,
+        });
+      }
+
+      setRejectingId(null);
+      setRejectComment('');
+      await refresh(false);
+      toast.success('Proof rejected and worker notified');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not reject proof');
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   // ── Post-funding beneficiary helpers ──────────────────────────────────────
@@ -441,13 +542,73 @@ export function AdminOperations() {
             {selected.disbursements.length === 0 && !showBeneficiariesForm && selected.gig?.funding_status !== 'funding_confirmed' ? (
               <div className="p-4 rounded border border-white/8 text-xs text-cream/50">No beneficiary records yet.</div>
             ) : selected.disbursements.map(item => (
-              <div key={item.id} className="p-3 rounded border border-white/8">
+              <div key={item.id} className="p-3 rounded border border-white/8 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-bold text-sm text-cream truncate">{item.recipient_name}</p>
                   <span className={`status-${item.status}`}>{item.status.replace(/_/g, ' ')}</span>
                 </div>
-                <p className="text-xs mt-1" style={{ color: DIM }}>{formatCurrency(item.amount)} - {item.method.replace(/_/g, ' ')}</p>
-                {item.sent_at && <p className="text-xs mt-1 flex items-center gap-1" style={{ color: DIM }}><RiTimeLine /> Sent {formatDate(item.sent_at)}</p>}
+                <p className="text-xs" style={{ color: DIM }}>{formatCurrency(item.amount)} - {item.method.replace(/_/g, ' ')}</p>
+                {item.sent_at && <p className="text-xs flex items-center gap-1" style={{ color: DIM }}><RiTimeLine /> Sent {formatDate(item.sent_at)}</p>}
+                {item.notes && item.status === 'proof_rejected' && (
+                  <p className="text-xs px-2 py-1.5 rounded" style={{ background: 'rgba(220,38,38,0.1)', color: '#f87171', border: '1px solid rgba(220,38,38,0.2)' }}>
+                    Rejection reason: {item.notes}
+                  </p>
+                )}
+                {item.status === 'sent' && (
+                  <div className="pt-1 space-y-2">
+                    {rejectingId === item.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          className="input-dark w-full resize-none text-xs"
+                          rows={2}
+                          placeholder="Enter rejection reason (required)…"
+                          value={rejectComment}
+                          onChange={e => setRejectComment(e.target.value)}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={actionBusy || !rejectComment.trim()}
+                            className="flex-1 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-40"
+                            style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)' }}
+                            onClick={() => handleRejectDisbursement(item)}
+                          >
+                            {actionBusy ? 'Rejecting…' : 'Confirm Reject'}
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded text-xs font-bold text-cream/50 hover:text-cream transition-colors"
+                            onClick={() => { setRejectingId(null); setRejectComment(''); }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          className="flex-1 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-40"
+                          style={{ background: 'rgba(125,201,154,0.12)', color: '#7DC99A', border: '1px solid rgba(125,201,154,0.25)' }}
+                          onClick={() => handleVerifyDisbursement(item)}
+                        >
+                          <RiCheckboxCircleLine className="inline mr-1" />Verify Proof
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          className="flex-1 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-40"
+                          style={{ background: 'rgba(220,38,38,0.1)', color: '#f87171', border: '1px solid rgba(220,38,38,0.2)' }}
+                          onClick={() => { setRejectingId(item.id); setRejectComment(''); }}
+                        >
+                          <RiCloseLine className="inline mr-1" />Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

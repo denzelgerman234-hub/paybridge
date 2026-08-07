@@ -63,6 +63,8 @@ export function AdminDisbursements() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectingDisbursement, setRejectingDisbursement] = useState<AdminDisbursement | null>(null);
+  const [rejectComment, setRejectComment] = useState('');
 
   async function refresh() {
     setLoading(true);
@@ -174,19 +176,19 @@ export function AdminDisbursements() {
     throwIfError(gigError);
   }
 
-  async function verify(disbursement: AdminDisbursement, verified: boolean) {
+  async function verify(disbursement: AdminDisbursement) {
     setBusyId(disbursement.id);
     try {
       const now = new Date().toISOString();
-      const note = verified ? 'Proof verified by Operations.' : 'Proof needs correction before approval.';
+      const note = 'Proof verified by Operations.';
       const { data: userData } = await supabase.auth.getUser();
       const reviewedBy = userData?.user?.id ?? null;
 
       const { error: updateError } = await supabase
         .from('worker_disbursements')
         .update({
-          status: verified ? 'verified' : 'proof_rejected',
-          verified_at: verified ? now : null,
+          status: 'verified',
+          verified_at: now,
           notes: note,
         })
         .eq('id', disbursement.id);
@@ -195,26 +197,72 @@ export function AdminDisbursements() {
       if (disbursement.proof) {
         const { error: proofError } = await supabase
           .from('disbursement_proofs')
-          .update({ accepted: verified, reviewed_at: now, reviewed_by: reviewedBy })
+          .update({ accepted: true, reviewed_at: now, reviewed_by: reviewedBy })
           .eq('id', disbursement.proof.id);
         throwIfError(proofError);
       }
 
-      await syncGigAfterReview(disbursement, verified);
+      await syncGigAfterReview(disbursement, true);
       await sendWorkerNotification({
         workerId: disbursement.worker_id,
         kind: 'disbursement_update',
-        title: verified ? 'Disbursement proof verified' : 'Disbursement proof needs correction',
-        body: verified
-          ? `${disbursement.recipient_name} proof was verified by Operations.`
-          : `${disbursement.recipient_name} proof needs correction before approval.`,
+        title: 'Disbursement proof verified',
+        body: `${disbursement.recipient_name} proof was verified by Operations.`,
         href: `/gigs/${disbursement.gig_id}`,
       });
       await refresh();
-      toast.success(verified ? 'Proof verified' : 'Proof returned for correction');
+      toast.success('Proof verified');
     } catch (error) {
-      console.error('[paybridge] Failed to review disbursement proof', error);
-      toast.error(error instanceof Error ? error.message : 'Could not review proof');
+      console.error('[paybridge] Failed to verify disbursement proof', error);
+      toast.error(error instanceof Error ? error.message : 'Could not verify proof');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function confirmReject() {
+    if (!rejectingDisbursement || !rejectComment.trim()) return;
+    setBusyId(rejectingDisbursement.id);
+    try {
+      const disbursement = rejectingDisbursement;
+      const now = new Date().toISOString();
+      const note = rejectComment.trim();
+      const { data: userData } = await supabase.auth.getUser();
+      const reviewedBy = userData?.user?.id ?? null;
+
+      const { error: updateError } = await supabase
+        .from('worker_disbursements')
+        .update({
+          status: 'proof_rejected',
+          verified_at: null,
+          notes: note,
+        })
+        .eq('id', disbursement.id);
+      throwIfError(updateError);
+
+      if (disbursement.proof) {
+        const { error: proofError } = await supabase
+          .from('disbursement_proofs')
+          .update({ accepted: false, reviewed_at: now, reviewed_by: reviewedBy })
+          .eq('id', disbursement.proof.id);
+        throwIfError(proofError);
+      }
+
+      await syncGigAfterReview(disbursement, false);
+      await sendWorkerNotification({
+        workerId: disbursement.worker_id,
+        kind: 'disbursement_update',
+        title: 'Disbursement proof needs correction',
+        body: `${disbursement.recipient_name} proof needs correction: ${note}`,
+        href: `/gigs/${disbursement.gig_id}`,
+      });
+      await refresh();
+      setRejectingDisbursement(null);
+      setRejectComment('');
+      toast.success('Proof returned for correction');
+    } catch (error) {
+      console.error('[paybridge] Failed to reject disbursement proof', error);
+      toast.error(error instanceof Error ? error.message : 'Could not reject proof');
     } finally {
       setBusyId(null);
     }
@@ -297,10 +345,10 @@ export function AdminDisbursements() {
                   <td className="px-5 py-3.5">
                     {REVIEWABLE.includes(d.status) ? (
                       <div className="flex items-center gap-2">
-                        <button disabled={busyId === d.id} onClick={() => verify(d, true)} className="p-1.5 rounded hover:bg-sage-500/15 text-sage transition-colors disabled:opacity-50" title="Verify proof">
+                        <button disabled={busyId === d.id} onClick={() => verify(d)} className="p-1.5 rounded hover:bg-sage-500/15 text-sage transition-colors disabled:opacity-50" title="Verify proof">
                           <RiCheckboxCircleLine size={16} />
                         </button>
-                        <button disabled={busyId === d.id} onClick={() => verify(d, false)} className="p-1.5 rounded hover:bg-red-500/15 text-red-400 transition-colors disabled:opacity-50" title="Request correction">
+                        <button disabled={busyId === d.id} onClick={() => { setRejectingDisbursement(d); setRejectComment(''); }} className="p-1.5 rounded hover:bg-red-500/15 text-red-400 transition-colors disabled:opacity-50" title="Request correction">
                           <RiCloseCircleLine size={16} />
                         </button>
                       </div>
@@ -312,6 +360,34 @@ export function AdminDisbursements() {
           </table>
         </div>
       </div>
+
+      {rejectingDisbursement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 sm:py-8">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setRejectingDisbursement(null)} />
+          <div className="relative w-full max-w-sm card flex flex-col max-h-[calc(100dvh-3rem)]">
+            <div className="flex-shrink-0 p-6 border-b border-white/10">
+              <h2 className="font-bold text-cream mb-1">Reject Proof</h2>
+              <p className="text-xs text-cream/50">{rejectingDisbursement.recipient_name} - {formatCurrency(Number(rejectingDisbursement.amount))}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <textarea
+                className="input-dark w-full resize-none text-xs"
+                rows={3}
+                placeholder="Enter rejection reason (required)…"
+                value={rejectComment}
+                onChange={e => setRejectComment(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="flex-shrink-0 flex gap-3 p-6 border-t border-white/10 bg-[#0B132F]/50 rounded-b-xl">
+              <button disabled={busyId !== null} className="btn-secondary flex-1 disabled:opacity-50" onClick={() => { setRejectingDisbursement(null); setRejectComment(''); }}>Cancel</button>
+              <button disabled={busyId !== null || !rejectComment.trim()} className="btn-primary flex-1 disabled:opacity-50 !bg-red-500/15 hover:!bg-red-500/25 !text-red-400 !border-red-500/30" onClick={() => confirmReject()}>
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

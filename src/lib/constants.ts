@@ -9,9 +9,9 @@ export const QUIZ_TOTAL = 6;
 
 export const ONBOARDING_STEPS = [
   { id: 'profile'   as const, label: 'Personal Info',      description: 'Tell us about yourself' },
+  { id: 'interview' as const, label: 'Live Interview',     description: '10–15 min screening session' },
   { id: 'training'  as const, label: 'Training',           description: 'Complete all 4 modules' },
   { id: 'quiz'      as const, label: 'Knowledge Quiz',     description: '5/6 correct to pass' },
-  { id: 'interview' as const, label: 'Live Interview',     description: '10–15 min session' },
   { id: 'bank'      as const, label: 'Disbursement Account', description: 'Link your dedicated account' },
   { id: 'payout'    as const, label: 'Fee Instructions',   description: 'Confirm worker-fee handling' },
 ] as const;

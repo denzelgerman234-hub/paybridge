@@ -30,8 +30,8 @@ export function OnboardingProfile() {
     setLoading(true);
     try {
       await saveWorkerProfile(profile!.id, form);
-      updateOnboardingStep('training');
-      navigate('/onboarding/training');
+      updateOnboardingStep('interview');
+      navigate('/onboarding/interview');
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,7 @@ export function OnboardingProfile() {
           </div>
           <div className="pt-2">
             <Button type="submit" className="w-full" size="lg" loading={loading}>
-              Continue to Training →
+              Continue to Interview →
             </Button>
           </div>
         </form>

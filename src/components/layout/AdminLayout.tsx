@@ -4,7 +4,7 @@ import { useAdminStore } from '../../stores/adminStore';
 import { PBNav, PBMark } from '../brand/Logo';
 import {
   LayoutDashboard, Users, Briefcase, DollarSign, Shield,
-  Activity, FileText, LogOut, Menu, Bell, CheckCheck, Inbox, Circle, MessageSquare, X
+  Activity, FileText, LogOut, Menu, Bell, CheckCheck, Inbox, Circle, MessageSquare, X, Calendar
 } from 'lucide-react';
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
 import { Link } from 'react-router-dom';
@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 const navItems = [
   { to: '/admin',               icon: LayoutDashboard, label: 'Overview',     exact: true },
   { to: '/admin/applications',  icon: FileText,        label: 'Applications' },
+  { to: '/admin/interviews',    icon: Calendar,        label: 'Interviews' },
   { to: '/admin/workers',       icon: Users,           label: 'Workers' },
   { to: '/admin/gigs',          icon: Briefcase,       label: 'Gigs' },
   { to: '/admin/disbursements', icon: DollarSign,      label: 'Disbursements' },

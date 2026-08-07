@@ -306,8 +306,21 @@ export interface InterviewSlot {
   id: string;
   worker_id: string;
   scheduled_at: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'live' | 'completed' | 'cancelled' | 'no_show';
+  passed: boolean | null;
+  format: 'chat';
+  rejection_reason: string | null;
   notes: string | null;
+  created_at: string;
+}
+
+export interface InterviewMessage {
+  id: string;
+  slot_id: string;
+  sender_role: 'worker' | 'admin';
+  sender_name: string;
+  body: string;
+  created_at: string;
 }
 
 export interface NotificationPreference {

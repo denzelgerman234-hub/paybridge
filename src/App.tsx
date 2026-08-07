@@ -58,6 +58,7 @@ import { AdminInbox }        from './pages/admin/AdminInbox';
 import { AdminOperations }   from './pages/admin/AdminOperations';
 import { AdminCommissions }  from './pages/admin/AdminCommissions';
 import { AdminCompliance }   from './pages/admin/AdminCompliance';
+import { AdminInterviews }  from './pages/admin/AdminInterviews';
 import { useAdminStore }     from './stores/adminStore';
 
 // Route guards
@@ -183,6 +184,7 @@ export default function App() {
           <Route path="/admin/operations"    element={<AdminOperations />} />
           <Route path="/admin/commissions"   element={<AdminCommissions />} />
           <Route path="/admin/compliance"    element={<AdminCompliance />} />
+          <Route path="/admin/interviews"    element={<AdminInterviews />} />
         </Route>
 
         {/* Catch-all */}

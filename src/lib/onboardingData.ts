@@ -34,7 +34,7 @@ export async function saveWorkerProfile(
 ) {
   const { error } = await supabase
     .from('worker_profiles')
-    .update({ ...data, onboarding_step: 'training' })
+    .update({ ...data, onboarding_step: 'interview' })
     .eq('id', workerId);
   throwIfError(error);
 }
@@ -66,18 +66,83 @@ export async function recordQuizAttempt(workerId: string, score: number, passed:
   });
   throwIfError(error);
 
-  if (passed) await setWorkerOnboardingStep(workerId, 'interview');
+  if (passed) await setWorkerOnboardingStep(workerId, 'bank');
 }
 
-export async function scheduleWorkerInterview(workerId: string, scheduledAt: string, format?: 'video' | 'chat') {
+export async function scheduleWorkerInterview(workerId: string, scheduledAt: string) {
+  // Cancel any existing scheduled slots first
+  await supabase
+    .from('interview_slots')
+    .update({ status: 'cancelled' })
+    .eq('worker_id', workerId)
+    .eq('status', 'scheduled');
+
   const { error } = await supabase.from('interview_slots').insert({
     worker_id: workerId,
     scheduled_at: scheduledAt,
     status: 'scheduled',
-    notes: format ? `Format: ${format === 'video' ? 'Video Call' : 'Live Chat'}` : null,
+    format: 'chat',
+    passed: null,
+    rejection_reason: null,
+    notes: null,
   });
   throwIfError(error);
-  await setWorkerOnboardingStep(workerId, 'bank');
+  // NOTE: onboarding_step stays 'interview' until admin passes/fails
+}
+
+export async function getWorkerInterviewSlot(workerId: string) {
+  const { data, error } = await supabase
+    .from('interview_slots')
+    .select('*')
+    .eq('worker_id', workerId)
+    .in('status', ['scheduled', 'live', 'completed'])
+    .order('created_at', { ascending: false });
+  throwIfError(error);
+  return ((data ?? []) as any[])[0] ?? null;
+}
+
+export async function getInterviewMessages(slotId: string) {
+  const { data, error } = await supabase
+    .from('interview_messages')
+    .select('*')
+    .eq('slot_id', slotId)
+    .order('created_at', { ascending: true });
+  throwIfError(error);
+  return (data ?? []) as any[];
+}
+
+export async function sendInterviewMessage(slotId: string, senderRole: 'worker' | 'admin', senderName: string, body: string) {
+  const { error } = await supabase.from('interview_messages').insert({
+    slot_id: slotId,
+    sender_role: senderRole,
+    sender_name: senderName,
+    body: body.trim(),
+  });
+  throwIfError(error);
+}
+
+export async function passInterview(workerId: string, slotId: string) {
+  const { error: slotError } = await supabase
+    .from('interview_slots')
+    .update({ status: 'completed', passed: true })
+    .eq('id', slotId);
+  throwIfError(slotError);
+  await setWorkerOnboardingStep(workerId, 'training');
+}
+
+export async function failInterview(workerId: string, slotId: string, reason: string) {
+  const { error: slotError } = await supabase
+    .from('interview_slots')
+    .update({ status: 'completed', passed: false, rejection_reason: reason })
+    .eq('id', slotId);
+  throwIfError(slotError);
+  // Send in-app notification to worker
+  await supabase.from('notifications').insert({
+    worker_id: workerId,
+    title: 'Interview result',
+    body: `Your interview was not approved at this time. Reason: ${reason}`,
+    href: '/onboarding/interview',
+  });
 }
 
 export async function listWorkerBankAccounts(workerId: string): Promise<WorkerBankAccount[]> {

@@ -62,11 +62,22 @@ export function RecipientCard({ disbursement: d }: RecipientCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { Icon, color } = STATUS_ICON[d.status] ?? STATUS_ICON.pending;
   const method = d.method.replace(/_/g, ' ');
+  const destinationRows: CopyRow[] = d.destination
+    .split('\n')
+    .map(line => {
+      const idx = line.indexOf(':');
+      if (idx > -1) {
+        return { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() };
+      }
+      return { label: 'Destination', value: line.trim() };
+    })
+    .filter(row => row.value);
+
   const detailRows: CopyRow[] = [
     { label: 'Recipient', value: d.recipient_name },
     { label: 'Amount', value: formatCurrency(d.amount), copyValue: String(d.amount) },
     { label: 'Method', value: method },
-    { label: 'Destination', value: d.destination },
+    ...destinationRows,
     ...(d.transaction_id ? [{ label: 'Transaction ID', value: d.transaction_id }] : []),
     { label: 'Status', value: d.status.replace(/_/g, ' ') },
   ];
@@ -99,7 +110,7 @@ export function RecipientCard({ disbursement: d }: RecipientCardProps) {
           <div className="min-w-0">
             <p className="truncate text-xs font-bold" style={{ color: CREAM, fontFamily: "'Space Grotesk', sans-serif" }}>{d.recipient_name}</p>
             <p className="truncate text-xs" style={{ color: DIM }}>
-              {method} - {d.destination}
+              {method} - {d.destination.replace(/\n/g, ' • ')}
             </p>
             {d.transaction_id && (
               <p className="mt-0.5 truncate font-mono text-xs" style={{ color: 'rgba(241,240,218,0.3)' }}>TXN: {d.transaction_id}</p>

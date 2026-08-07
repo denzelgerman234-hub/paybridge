@@ -13,6 +13,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import type { InterviewSlot, InterviewMessage } from '../../types/database';
+import toast from 'react-hot-toast';
 
 const CREAM = '#F1F0DA';
 const DIM   = 'rgba(241,240,218,0.45)';
@@ -146,6 +147,10 @@ export function OnboardingInterview() {
       await scheduleWorkerInterview(profile.id, iso);
       await loadSlot();
       setRescheduling(false);
+      toast.success('Interview scheduled successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to schedule interview');
+      console.error(err);
     } finally {
       setBooking(false);
     }

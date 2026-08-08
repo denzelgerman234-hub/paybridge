@@ -7,7 +7,7 @@ import {
   failInterview,
 } from '../../lib/onboardingData';
 import type { InterviewSlot, InterviewMessage, WorkerProfile } from '../../types/database';
-import { RiMessage2Line, RiTimeLine, RiCheckboxCircleLine, RiCloseCircleLine, RiSendPlaneLine, RiRefreshLine, RiUserLine, RiCalendarEventLine } from 'react-icons/ri';
+import { RiMessage2Line, RiTimeLine, RiCheckboxCircleLine, RiCloseCircleLine, RiSendPlaneLine, RiRefreshLine, RiUserLine, RiCalendarEventLine, RiLinksLine, RiFileCopyLine } from 'react-icons/ri';
 import toast from 'react-hot-toast';
 
 const CREAM  = '#F1F0DA';
@@ -161,13 +161,6 @@ export function AdminInterviews() {
     try {
       await passInterview(selected.worker.id, selected.id);
       toast.success(`${selected.worker.full_name} passed — advanced to Training`);
-      // Send notification
-      await supabase.from('notifications').insert({
-        worker_id: selected.worker.id,
-        title: 'Interview passed 🎉',
-        body: 'Congratulations! You have passed your interview and can now proceed to training.',
-        href: '/onboarding/training',
-      });
       await loadSlots();
       setSelected(prev => prev ? { ...prev, status: 'completed', passed: true } : null);
     } finally {
@@ -304,6 +297,29 @@ export function AdminInterviews() {
             {selected.passed
               ? <><RiCheckboxCircleLine size={15} /> Interview passed — worker advanced to Training</>
               : <><RiCloseCircleLine size={15} /> Interview failed — {selected.rejection_reason}</>}
+          </div>
+        )}
+
+        {/* Link banner */}
+        {!isDone && selected.access_token && (
+          <div className="flex-shrink-0 px-4 py-3 border-b flex items-center justify-between gap-3 bg-black/20" style={{ borderColor: BORDER }}>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <RiLinksLine size={16} style={{ color: GOLD }} className="flex-shrink-0" />
+              <div className="truncate min-w-0 text-xs">
+                <span className="text-cream/50 mr-2">Interview Link:</span>
+                <span className="text-cream font-mono truncate select-all">{window.location.origin}/interview-room/{selected.access_token}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/interview-room/${selected.access_token}`);
+                toast.success('Link copied to clipboard');
+              }}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold transition-colors"
+              style={{ background: 'rgba(201,168,76,0.15)', color: GOLD, border: '1px solid rgba(201,168,76,0.3)' }}
+            >
+              <RiFileCopyLine size={13} /> Copy Link
+            </button>
           </div>
         )}
 

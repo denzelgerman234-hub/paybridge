@@ -33,6 +33,7 @@ import { OnboardingProfile }  from './pages/onboarding/Profile';
 import { OnboardingTraining } from './pages/onboarding/Training';
 import { OnboardingQuiz }     from './pages/onboarding/Quiz';
 import { OnboardingInterview }from './pages/onboarding/Interview';
+import { InterviewRoom }      from './pages/onboarding/InterviewRoom';
 import { OnboardingBank }     from './pages/onboarding/Bank';
 import { OnboardingPayout }   from './pages/onboarding/Payout';
 
@@ -154,6 +155,18 @@ export default function App() {
           <Route path="/onboarding/bank"      element={<OnboardingBank />} />
           <Route path="/onboarding/payout"    element={<OnboardingPayout />} />
         </Route>
+
+        {/* Interview Room — standalone, no sidebar */}
+        <Route
+          path="/interview-room/:token"
+          element={
+            <OnboardingRoute>
+              <div className="min-h-screen" style={{ background: '#0B132F' }}>
+                <InterviewRoom />
+              </div>
+            </OnboardingRoute>
+          }
+        />
 
         {/* Protected dashboard */}
         <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

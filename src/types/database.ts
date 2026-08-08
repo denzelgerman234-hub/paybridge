@@ -311,6 +311,7 @@ export interface InterviewSlot {
   format: 'chat';
   rejection_reason: string | null;
   notes: string | null;
+  access_token?: string | null;
   created_at: string;
 }
 

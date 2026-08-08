@@ -1,18 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { RiMessage2Line, RiCalendarEventLine, RiCheckboxCircleLine, RiSendPlaneLine, RiTimeLine, RiRefreshLine, RiCalendarCloseLine } from 'react-icons/ri';
+import { useState, useEffect, useCallback } from 'react';
+import { RiMessage2Line, RiCalendarEventLine, RiCheckboxCircleLine, RiTimeLine, RiCalendarCloseLine } from 'react-icons/ri';
 import { useNavigate } from 'react-router-dom';
 import {
   scheduleWorkerInterview,
   getWorkerInterviewSlot,
-  getInterviewMessages,
-  sendInterviewMessage,
 } from '../../lib/onboardingData';
 import { useAppStore } from '../../stores/appStore';
 import { ONBOARDING_STEPS } from '../../lib/constants';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import type { InterviewSlot, InterviewMessage } from '../../types/database';
+import type { InterviewSlot } from '../../types/database';
 import toast from 'react-hot-toast';
 
 const CREAM = '#F1F0DA';
@@ -63,29 +61,12 @@ function timeToIso(day: Date, timeLabel: string): string {
   return d.toISOString();
 }
 
-// ── sub-components ────────────────────────────────────────────────
-
-function ChatBubble({ msg }: { msg: InterviewMessage }) {
-  const isWorker = msg.sender_role === 'worker';
-  return (
-    <div className={`flex ${isWorker ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className="max-w-[80%] rounded px-3 py-2 text-sm"
-        style={{ background: isWorker ? GOLD : 'rgba(255,255,255,0.07)', color: isWorker ? '#0B132F' : CREAM }}
-      >
-        <p className="text-[11px] font-semibold opacity-60 mb-0.5">{msg.sender_name} · {formatTime(msg.created_at)}</p>
-        <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-      </div>
-    </div>
-  );
-}
 
 // ── main component ────────────────────────────────────────────────
 
 export function OnboardingInterview() {
   const { profile } = useAppStore();
   const navigate     = useNavigate();
-  const chatEndRef   = useRef<HTMLDivElement>(null);
   const stepIdx      = ONBOARDING_STEPS.findIndex(s => s.id === 'interview') + 1;
 
   const businessDays = getBusinessDays(7);
@@ -95,12 +76,9 @@ export function OnboardingInterview() {
   const [selectedTime, setSelectedTime] = useState('');
   const [booking, setBooking]           = useState(false);
 
-  // Slot & messages state
-  const [slot, setSlot]         = useState<InterviewSlot | null>(null);
-  const [messages, setMessages] = useState<InterviewMessage[]>([]);
+  // Slot state
+  const [slot, setSlot]     = useState<InterviewSlot | null>(null);
   const [fetching, setFetching] = useState(true);
-  const [chatInput, setChatInput] = useState('');
-  const [sending, setSending]     = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
 
   const loadSlot = useCallback(async () => {
@@ -108,10 +86,6 @@ export function OnboardingInterview() {
     try {
       const s = await getWorkerInterviewSlot(profile.id);
       setSlot(s ?? null);
-      if (s) {
-        const msgs = await getInterviewMessages(s.id);
-        setMessages(msgs);
-      }
     } finally {
       setFetching(false);
     }
@@ -119,25 +93,16 @@ export function OnboardingInterview() {
 
   useEffect(() => { void loadSlot(); }, [loadSlot]);
 
-  // Auto-poll every 6s when a slot is scheduled/live
+  // Poll slot status to detect pass/fail
   useEffect(() => {
     if (!slot || slot.status === 'completed') return;
     const id = setInterval(async () => {
-      if (!slot) return;
-      const msgs = await getInterviewMessages(slot.id);
-      setMessages(msgs);
-      // Refresh slot status too
       const s = await getWorkerInterviewSlot(profile!.id);
       setSlot(s ?? null);
       if (s?.passed === true) navigate('/onboarding/training');
     }, 6000);
     return () => clearInterval(id);
   }, [slot, profile, navigate]);
-
-  // Scroll to bottom when messages update
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   async function handleBook() {
     if (!selectedDay || !selectedTime || !profile) return;
@@ -156,19 +121,6 @@ export function OnboardingInterview() {
     }
   }
 
-  async function handleSend() {
-    if (!chatInput.trim() || !slot || sending) return;
-    setSending(true);
-    const body = chatInput.trim();
-    setChatInput('');
-    try {
-      await sendInterviewMessage(slot.id, 'worker', profile?.full_name || 'Applicant', body);
-      const msgs = await getInterviewMessages(slot.id);
-      setMessages(msgs);
-    } finally {
-      setSending(false);
-    }
-  }
 
   // ── loading ──
   if (fetching) {
@@ -328,132 +280,43 @@ export function OnboardingInterview() {
     );
   }
 
-  // ── pending / live chat view ──
-  const isLive      = slot.status === 'live';
-  const scheduledAt = new Date(slot.scheduled_at);
-  const isPast      = Date.now() > scheduledAt.getTime();
-
+  // ── pending / waiting for link view ──
   return (
     <div className="max-w-2xl mx-auto space-y-5 animate-fade-in">
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gold mb-1">
           Step {stepIdx} of {ONBOARDING_STEPS.length} — Live Interview
         </p>
-        <h1 className="text-3xl font-black text-cream">Interview Room</h1>
+        <h1 className="text-3xl font-black text-cream">Interview Scheduled</h1>
       </div>
 
       <ProgressBar value={stepIdx} max={ONBOARDING_STEPS.length} label="Onboarding progress" showPercent />
 
-      {/* Status banner */}
-      <div
-        className="p-4 rounded flex items-center justify-between gap-4 flex-wrap"
-        style={{
-          background: isLive ? 'rgba(125,201,154,0.08)' : 'rgba(201,168,76,0.06)',
-          border: `1px solid ${isLive ? 'rgba(125,201,154,0.25)' : 'rgba(201,168,76,0.2)'}`,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          {isLive ? (
-            <>
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 animate-pulse" style={{ background: SAGE }} />
-              <div>
-                <p className="text-sm font-bold" style={{ color: SAGE }}>Live — Agent is ready</p>
-                <p className="text-xs" style={{ color: DIM }}>Send your first message to begin the interview.</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <RiTimeLine size={18} style={{ color: GOLD, flexShrink: 0 }} />
-              <div>
-                <p className="text-sm font-bold" style={{ color: CREAM }}>
-                  {isPast ? 'Waiting for agent to join…' : `Scheduled for ${formatDateTime(slot.scheduled_at)}`}
-                </p>
-                <p className="text-xs" style={{ color: DIM }}>
-                  {isPast
-                    ? 'An agent will join shortly. You may send a message now.'
-                    : 'A PayBridge agent will join at your appointment time.'}
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-        <button
-          className="text-xs font-semibold flex items-center gap-1.5 transition-colors"
-          style={{ color: DIM }}
-          onClick={() => setRescheduling(true)}
-        >
-          <RiCalendarEventLine size={13} /> Reschedule
-        </button>
-      </div>
-
-      {/* Chat area */}
-      <div
-        className="rounded flex flex-col"
-        style={{ border: `1px solid ${BORDER}`, background: NAVY8, minHeight: 380 }}
-      >
-        <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: BORDER }}>
-          <RiMessage2Line size={14} style={{ color: GOLD }} />
-          <p className="text-xs font-bold uppercase tracking-widest" style={{ color: GOLD, fontFamily: "'Space Grotesk', sans-serif" }}>
-            Interview Chat
+      <Card padding="lg">
+        <div className="text-center py-6">
+          <RiTimeLine size={36} style={{ color: GOLD, margin: '0 auto 16px' }} />
+          <h2 className="text-xl font-bold text-cream mb-3">Check Your Email</h2>
+          <p className="text-sm text-cream/50 mb-6 max-w-md mx-auto leading-relaxed">
+            Your interview has been successfully scheduled for {formatDateTime(slot.scheduled_at)}. 
+            You will receive an email shortly with a unique access link to join the chatroom.
           </p>
-          {isLive && (
-            <span className="ml-auto flex items-center gap-1.5 text-xs" style={{ color: SAGE }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: SAGE }} /> Live
-            </span>
-          )}
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ maxHeight: 380 }}>
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center">
-              <RiMessage2Line size={28} style={{ color: 'rgba(201,168,76,0.25)', marginBottom: 10 }} />
-              <p className="text-sm font-semibold" style={{ color: CREAM }}>No messages yet</p>
-              <p className="text-xs mt-1" style={{ color: DIM }}>
-                {isLive
-                  ? 'The agent is ready. Say hello to get started.'
-                  : 'Messages will appear here once your session begins.'}
-              </p>
-            </div>
-          ) : (
-            messages.map(msg => <ChatBubble key={msg.id} msg={msg} />)
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="px-4 py-3 border-t" style={{ borderColor: BORDER }}>
-          <div className="flex items-center gap-2">
-            <input
-              className="flex-1 input-dark text-sm"
-              placeholder={isLive || isPast ? 'Type your message…' : 'Chat opens at your scheduled time'}
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              disabled={(!isLive && !isPast) || sending}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
-            />
+          <div className="p-4 rounded-lg text-left inline-block" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)' }}>
+            <p className="text-xs font-semibold" style={{ color: DIM }}>
+              <span style={{ color: GOLD }}>Important:</span> Keep your link secure. It will expire once the interview concludes.
+            </p>
+          </div>
+          
+          <div className="mt-8">
             <button
-              disabled={(!isLive && !isPast) || !chatInput.trim() || sending}
-              onClick={() => void handleSend()}
-              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded transition-all disabled:opacity-30"
-              style={{ background: GOLD, color: '#0B132F' }}
+              className="text-xs font-semibold flex items-center gap-1.5 transition-colors mx-auto"
+              style={{ color: DIM }}
+              onClick={() => setRescheduling(true)}
             >
-              <RiSendPlaneLine size={15} />
+              <RiCalendarEventLine size={13} /> Reschedule Interview
             </button>
           </div>
-          <button
-            className="flex items-center gap-1.5 text-[11px] mt-2 transition-colors"
-            style={{ color: DIM }}
-            onClick={() => void loadSlot()}
-          >
-            <RiRefreshLine size={11} /> Refresh messages
-          </button>
         </div>
-      </div>
-
-      <p className="text-xs text-center" style={{ color: DIM }}>
-        This chat is monitored by PayBridge Operations. All messages are recorded.
-      </p>
+      </Card>
     </div>
   );
 }

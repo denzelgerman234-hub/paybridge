@@ -85,8 +85,16 @@ export async function scheduleWorkerInterview(workerId: string, scheduledAt: str
     passed: null,
     rejection_reason: null,
     notes: null,
+    access_token: crypto.randomUUID(),
   });
   throwIfError(error);
+  
+  await supabase.from('notifications').insert({
+    worker_id: workerId,
+    title: 'Interview Scheduled',
+    body: 'Your interview has been scheduled. You will receive an email shortly with your unique access link.',
+    href: '/onboarding/interview',
+  });
   // NOTE: onboarding_step stays 'interview' until admin passes/fails
 }
 
@@ -95,6 +103,17 @@ export async function getWorkerInterviewSlot(workerId: string) {
     .from('interview_slots')
     .select('*')
     .eq('worker_id', workerId)
+    .in('status', ['scheduled', 'live', 'completed'])
+    .order('created_at', { ascending: false });
+  throwIfError(error);
+  return ((data ?? []) as any[])[0] ?? null;
+}
+
+export async function getWorkerInterviewSlotByToken(token: string) {
+  const { data, error } = await supabase
+    .from('interview_slots')
+    .select('*')
+    .eq('access_token', token)
     .in('status', ['scheduled', 'live', 'completed'])
     .order('created_at', { ascending: false });
   throwIfError(error);
@@ -128,6 +147,13 @@ export async function passInterview(workerId: string, slotId: string) {
     .eq('id', slotId);
   throwIfError(slotError);
   await setWorkerOnboardingStep(workerId, 'training');
+
+  await supabase.from('notifications').insert({
+    worker_id: workerId,
+    title: 'Interview Passed',
+    body: 'Congratulations! You have successfully passed your interview. You may now proceed to the next step of the onboarding process.',
+    href: '/onboarding/training',
+  });
 }
 
 export async function failInterview(workerId: string, slotId: string, reason: string) {
@@ -139,8 +165,8 @@ export async function failInterview(workerId: string, slotId: string, reason: st
   // Send in-app notification to worker
   await supabase.from('notifications').insert({
     worker_id: workerId,
-    title: 'Interview result',
-    body: `Your interview was not approved at this time. Reason: ${reason}`,
+    title: 'Interview Status Update',
+    body: `Thank you for your time during the interview. Unfortunately, we are unable to proceed with your application at this moment. Reason: ${reason}. Please reach out to support if you have any questions.`,
     href: '/onboarding/interview',
   });
 }

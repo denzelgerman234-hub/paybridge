@@ -69,6 +69,7 @@ export function ApplyPage() {
     const message = validateStep();
     if (message) { setError(message); return; }
     setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setStep(current => current + 1);
   }
 

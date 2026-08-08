@@ -166,6 +166,11 @@ export function AccountPage() {
     certified: false,
   });
 
+  const [genericDocToSign, setGenericDocToSign] = useState<{ type: LegalDocumentType, label: string, desc: string } | null>(null);
+  const [signingGenericDoc, setSigningGenericDoc] = useState(false);
+  const [genericSignature, setGenericSignature] = useState('');
+  const [genericCertified, setGenericCertified] = useState(false);
+
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
@@ -543,6 +548,34 @@ export function AccountPage() {
     }
   }
 
+  async function handleSignGenericDoc(e: React.FormEvent) {
+    e.preventDefault();
+    if (!genericCertified) { toast.error('You must certify the information is correct'); return; }
+    if (genericSignature.trim().toLowerCase() !== profile!.full_name.toLowerCase()) {
+      toast.error(`Type your full legal name exactly as it appears on your profile: "${profile!.full_name}"`);
+      return;
+    }
+    setSigningGenericDoc(true);
+    try {
+      await wait(800);
+      await signWorkerDocument({
+        workerId: profile!.id,
+        documentType: genericDocToSign!.type,
+        signature: genericSignature,
+        documentVersion: '1.0',
+      });
+      setSignedDocuments(await listWorkerSignedDocuments(profile!.id));
+      setGenericDocToSign(null);
+      setGenericSignature('');
+      setGenericCertified(false);
+      toast.success(`${genericDocToSign!.label} signed and recorded`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to sign document');
+    } finally {
+      setSigningGenericDoc(false);
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl">
       <div>
@@ -876,9 +909,7 @@ export function AccountPage() {
                     )}
                     {signed
                       ? <span className="status-verified flex items-center gap-1"><FileCheck size={11} /> Signed</span>
-                      : doc.type === 'irs_w9'
-                        ? <Button size="sm" variant="secondary" icon={<PenLine size={13} />} onClick={() => setIsW9ModalOpen(true)}>Sign Now</Button>
-                        : <span className="status-pending">Pending</span>
+                      : <Button size="sm" variant="secondary" icon={<PenLine size={13} />} onClick={() => doc.type === 'irs_w9' ? setIsW9ModalOpen(true) : setGenericDocToSign(doc)}>Sign Now</Button>
                     }
                   </div>
                 </div>
@@ -1136,6 +1167,45 @@ export function AccountPage() {
             </form>
           )}
         </div>
+      </Modal>
+
+      {/* Generic Document Signing Modal */}
+      <Modal isOpen={!!genericDocToSign} onClose={() => setGenericDocToSign(null)} title={genericDocToSign?.label || 'Sign Document'}>
+        <p className="text-sm text-cream/70 mb-5">{genericDocToSign?.desc}</p>
+        
+        <div className="p-4 mb-5 rounded bg-black/30 border border-white/10 max-h-48 overflow-y-auto text-xs text-cream/60 space-y-3">
+          <p>By signing this document, you acknowledge and agree to the terms and conditions outlined in the full text of the {genericDocToSign?.label}.</p>
+          <p>This is a legally binding electronic signature. Your signature, timestamp, and IP address will be recorded by PayBridge.</p>
+        </div>
+
+        <form onSubmit={handleSignGenericDoc} className="space-y-4">
+          <Input 
+            label="Type your full legal name to sign" 
+            value={genericSignature} 
+            onChange={e => setGenericSignature(e.target.value)} 
+            required 
+            placeholder={profile?.full_name}
+          />
+          
+          <label className="flex items-start gap-3 mt-4 cursor-pointer group">
+            <div className="relative flex items-center justify-center mt-0.5">
+              <input type="checkbox" className="peer sr-only" checked={genericCertified} onChange={e => setGenericCertified(e.target.checked)} required />
+              <div className="w-4 h-4 rounded border flex items-center justify-center transition-colors border-white/20 bg-black/20 peer-checked:bg-gold peer-checked:border-gold group-hover:border-white/40">
+                {genericCertified && <CheckCircle size={12} className="text-[#0B132F]" />}
+              </div>
+            </div>
+            <p className="text-xs text-cream/70 leading-relaxed">
+              I certify under penalty of perjury that I have read and agree to the {genericDocToSign?.label}.
+            </p>
+          </label>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+            <Button type="button" variant="secondary" onClick={() => setGenericDocToSign(null)}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={signingGenericDoc} disabled={!genericSignature.trim() || !genericCertified}>
+              Sign Document
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

@@ -110,9 +110,12 @@ function defaultNotificationPreferences(workerId: string): NotificationPreferenc
     email_disbursement: true,
     email_fee_record: true,
     email_compliance: true,
+    email_badge: true,
     sms_disbursement: false,
     push_new_gig: true,
     push_disbursement: true,
+    push_compliance: true,
+    push_badge: true,
   };
 }
 

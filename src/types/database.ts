@@ -331,9 +331,12 @@ export interface NotificationPreference {
   email_disbursement: boolean;
   email_fee_record: boolean;
   email_compliance: boolean;
+  email_badge: boolean;
   sms_disbursement: boolean;
   push_new_gig: boolean;
   push_disbursement: boolean;
+  push_compliance: boolean;
+  push_badge: boolean;
 }
 
 export type NotificationDeliveryChannel = 'email' | 'sms';

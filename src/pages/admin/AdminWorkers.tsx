@@ -74,6 +74,17 @@ export function AdminWorkers() {
           href: '/account',
         });
       }
+
+      if (fields.badge) {
+        const nextBadge = BADGE_TIERS.find(b => b.id === fields.badge);
+        await sendWorkerNotification({
+          workerId: id,
+          kind: 'badge_update',
+          title: 'Badge upgraded',
+          body: `Congratulations! Your account has been upgraded to the ${nextBadge?.label} tier. Check the Gigs board for new opportunities.`,
+          href: '/gigs',
+        });
+      }
     } catch (error: any) {
       toast.error(error?.message || 'Worker update failed');
       // Revert on failure

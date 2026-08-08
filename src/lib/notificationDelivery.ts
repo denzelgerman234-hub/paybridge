@@ -8,7 +8,8 @@ export type WorkerNotificationKind =
   | 'new_gig'
   | 'disbursement_update'
   | 'fee_record_update'
-  | 'compliance_alert';
+  | 'compliance_alert'
+  | 'badge_update';
 
 interface WorkerNotificationInput {
   workerId: string;
@@ -30,9 +31,12 @@ const DEFAULT_PREFERENCES: Omit<NotificationPreference, 'id' | 'worker_id'> = {
   email_disbursement: true,
   email_fee_record: true,
   email_compliance: true,
+  email_badge: true,
   sms_disbursement: false,
   push_new_gig: true,
   push_disbursement: true,
+  push_compliance: true,
+  push_badge: true,
 };
 
 const KIND_RULES: Record<WorkerNotificationKind, ChannelRule[]> = {
@@ -49,7 +53,12 @@ const KIND_RULES: Record<WorkerNotificationKind, ChannelRule[]> = {
     { channel: 'email', preferenceKey: 'email_fee_record' },
   ],
   compliance_alert: [
+    { channel: 'push', preferenceKey: 'push_compliance' },
     { channel: 'email', preferenceKey: 'email_compliance' },
+  ],
+  badge_update: [
+    { channel: 'push', preferenceKey: 'push_badge' },
+    { channel: 'email', preferenceKey: 'email_badge' },
   ],
 };
 
